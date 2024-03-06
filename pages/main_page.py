@@ -21,7 +21,9 @@ selected_layers = [
     if st.sidebar.checkbox(layer_name, False)
 ]
 
-# Streamlit widgets automatically run the script from top to bottom. Since
-# this button is not connected to any other logic, it just causes a plain
-# rerun.
-st.button("Re-run")
+# print chosen players from the welcome page
+if "players" in st.session_state and len(st.session_state["players"]) == 3:
+    # print as str with commas
+    st.info(f"Players chosen: {', '.join(st.session_state['players'])}")
+else:
+    st.info("No players chosen yet")

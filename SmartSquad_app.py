@@ -7,7 +7,8 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
-# Initialize session state for players list if not already set
+players_names = [f"{i}" for i in range(15)]
+
 if 'players' not in st.session_state:
     st.session_state['players'] = []
 
@@ -21,19 +22,28 @@ st.write("""Welcome to SmartSquad!
 
 # Function to add a player
 def add_player():
-    player_name = st.session_state.player_name
-    if player_name:  # Check if the player_name is not empty before adding
-        st.session_state['players'].append(player_name)  # Append the player name
-        st.session_state.player_name = ""  # Clear the input box after adding
+    player_name = st.session_state.selected_player
+    if player_name not in st.session_state['players']:
+        st.session_state['players'].append(player_name)
+        check_count()  # Update the count and disabled state after adding
     else:
-        st.warning("Please enter a player name.")
+        st.warning("Player already added", icon="⚠️")
 
 # Split the layout into two columns
-col1, col2, col3 = st.columns([0.8, 0.2,  1])
+col1, col3 = st.columns([1, 2])
 
-# Column 1: Player input and "Done" button
+# Manage player addition logic based on the count
+def check_count():
+    if len(st.session_state['players']) == 3:
+        st.session_state["disabled"] = True
+    else:
+        st.session_state["disabled"] = False
+
+# Column 1: Player selection and "Add" button
 with col1:
-    player_name = st.text_input("Enter player name", key="player_name", on_change=add_player, disabled=st.session_state.disabled)
+    selected_player = st.selectbox("Select player", players_names, key="selected_player", disabled=st.session_state["disabled"])
+    add_player_button = st.button("Add Player", on_click=add_player, key="add_player", disabled=st.session_state["disabled"])
+    
 
 # Column 2: List and remove players
 with col3:
@@ -41,22 +51,18 @@ with col3:
     # Function to remove a player
     def remove_player(player_to_remove):
         st.session_state['players'].remove(player_to_remove)
+        check_count()  # Update the count and disabled state after removal
         st.experimental_rerun()
 
     # Display each player with a remove button
     for index, player in enumerate(st.session_state['players'], start=1):
-        player_col, remove_col = st.columns([1, 1])
+        player_col, remove_col = st.columns([3, 1])
         player_col.write(f"Player {index}: {player}")
         if remove_col.button("Remove 🗑️", key=f"remove_{index}"):
             remove_player(player)
 
-    # if the count of players is 15, avoid adding more players and present the "Done" button
-    if len(st.session_state['players']) == 14:
-        # disable the input box
-        st.session_state["disabled"] = True
-    else:
-        # enable the input box
-        st.session_state["disabled"] = False
-    if len(st.session_state['players']) == 15:
-        if st.button("Done", key="done"):
-            switch_page("main page")
+    # Place the Done button outside check_count to avoid DuplicateWidgetID error
+    if len(st.session_state['players']) == 3:
+        if st.button("Done", key="done_picking"):
+            switch_page("Main Page")
+
