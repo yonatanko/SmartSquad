@@ -23,18 +23,72 @@ margins_css = """
 """
 
 st.markdown(margins_css, unsafe_allow_html=True)
+def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=70):
+    position_mapping = {'Goalkeeper': (10, 40)}  # Goalkeeper's position is typically fixed
+    
+    # Dynamically generate positions for Defenders, Midfielders, and Forwards
+    defender_spots = np.linspace(10, pitch_height, num_defenders)
+    midfielder_spots = np.linspace(10, pitch_height, num_midfielders)
+    forward_spots = np.linspace(10, pitch_height, num_forwards)
+    
+    position_mapping['Defender'] = [(30, y) for y in defender_spots]
+    position_mapping['Midfielder'] = [(60, y) for y in midfielder_spots]
+    position_mapping['Forward'] = [(90, y) for y in forward_spots]
+    
+    return position_mapping
+# Assuming maximum number of players per role (you can adjust these numbers)
+num_defenders = 4
+num_midfielders = 5
+num_forwards = 1
 
-def draw_pitch():
-    # Create a figure and axes with custom dimensions
-    fig, ax = plt.subplots(figsize=(6, 8))  # Adjust figsize as needed
+position_mapping = generate_position_mapping(num_defenders, num_midfielders, num_forwards)
+
+def draw_pitch_with_players(players, club_colors):
+    fig, ax = plt.subplots(figsize=(6, 8))
     pitch = VerticalPitch(pitch_color='grass', line_color='white', stripe=True)
     pitch.draw(ax=ax)
-    return fig  # Return the figure object
 
+    # Keep track of used positions to avoid overlap
+    used_positions = {'Defender': 0, 'Midfielder': 0, 'Forward': 0}
+
+    for player, position, club in players:
+        if position == 'Goalkeeper':
+            x, y = position_mapping[position]
+        else:
+            x, y = position_mapping[position][used_positions[position]]
+            used_positions[position] += 1
+
+        color = club_colors.get(club, 'grey')  # Default to grey if club color not found
+        pitch.scatter(x, y, s=600, ax=ax, edgecolors='black', c=color, zorder=2)
+        plt.text(y, x-8, player, fontsize=10, ha='center', va='center')
+
+    return fig
+
+# Example usage
+players = [
+    ('Player 1', 'Goalkeeper', 'Club A'),
+    ('Player 2', 'Defender', 'Club B'),
+    ('Player 3', 'Defender', 'Club C'),
+    ('Player 4', 'Midfielder', 'Club A'),
+    ('Player 5', 'Midfielder', 'Club B'),
+    ('Player 6', 'Forward', 'Club C'),
+    ('Player 7', 'Midfielder', 'Club A'),
+    ('Player 8', 'Midfielder', 'Club B'),
+    ('Player 9', 'Midfielder', 'Club C'),
+    ('Player 10', 'Defender', 'Club A'),
+    ('Player 11', 'Defender', 'Club D')
+]
+
+club_colors = {
+    'Club A': 'blue',
+    'Club B': 'red',
+    'Club C': 'green',
+    'Club D': 'purple'
+}
 
 row1 = row([2.6,2,1], vertical_align="center")
-# draw the pitch
-fig = draw_pitch()
+# Draw the pitch with players
+fig = draw_pitch_with_players(players, club_colors)
 row1.pyplot(fig)
 
 
