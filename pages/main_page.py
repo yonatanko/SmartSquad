@@ -1,18 +1,42 @@
 import streamlit as st
 import time
 import numpy as np
+from mplsoccer import Pitch, VerticalPitch
+import matplotlib.pyplot as plt
+from streamlit_extras.row import row
 
 st.set_page_config(
     page_title="Main Page"
     )
 
-st.markdown("# Plotting Demo")
-# st.sidebar.header("Main Page")
-st.write(
-    """This demo illustrates a combination of plotting and animation with
-Streamlit. We're generating a bunch of random numbers in a loop for around
-5 seconds. Enjoy!"""
-)
+margins_css = """
+    <style>
+        .main > div {
+            padding-top: 2rem;
+            padding-left: 0rem;
+            padding-bottom: 0rem;
+        }
+
+        button[title="View fullscreen"]{
+        visibility: hidden;}
+    </style>
+"""
+
+st.markdown(margins_css, unsafe_allow_html=True)
+
+def draw_pitch():
+    # Create a figure and axes with custom dimensions
+    fig, ax = plt.subplots(figsize=(6, 8))  # Adjust figsize as needed
+    pitch = VerticalPitch(pitch_color='grass', line_color='white', stripe=True)
+    pitch.draw(ax=ax)
+    return fig  # Return the figure object
+
+
+row1 = row([2.6,2,1], vertical_align="center")
+# draw the pitch
+fig = draw_pitch()
+row1.pyplot(fig)
+
 
 st.sidebar.markdown("### Which data should i show you?")
 selected_layers = [
@@ -20,10 +44,3 @@ selected_layers = [
     for layer_name, layer in {"Expected score":"Expected score", "Next Game": "Next Game", "Price":"Price", "% owned": "% owned"}.items()
     if st.sidebar.checkbox(layer_name, False)
 ]
-
-# print chosen players from the welcome page
-if "players" in st.session_state and len(st.session_state["players"]) == 3:
-    # print as str with commas
-    st.info(f"Players chosen: {', '.join(st.session_state['players'])}")
-else:
-    st.info("No players chosen yet")
