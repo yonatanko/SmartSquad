@@ -4,8 +4,19 @@ from streamlit_extras.switch_page_button import switch_page
 st.set_page_config(
     page_title="SmartSquad",
     page_icon="⚽",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="collapsed",
+    layout="wide"
 )
+
+margins_css = """
+    <style>
+        .main > div {
+            padding-top: 0rem;
+        }
+    </style>
+"""
+
+st.markdown(margins_css, unsafe_allow_html=True)
 
 players_names = [f"{i}" for i in range(15)]
 
@@ -15,7 +26,10 @@ if 'players' not in st.session_state:
 if "disabled" not in st.session_state:
     st.session_state["disabled"] = False
 
-st.write("# SmartSquad ⚽")
+_, image_position, _ = st.columns([1, 1, 1])
+with image_position:
+    st.image("app_image.png", width=300)
+
 st.write("""Welcome to SmartSquad!
          This app is designed to help you manage your fantasy football team.
          You can use it to track your players' performance, compare them to other players, and make informed decisions about your team.""")
