@@ -44,7 +44,7 @@ def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitc
         
         return sorted(positions)
 
-    position_mapping['Defender'] = [(30, y) for y in generate_y_positions(num_defenders)]
+    position_mapping['Defender'] = [(32, y) for y in generate_y_positions(num_defenders)]
     position_mapping['Midfielder'] = [(60, y) for y in generate_y_positions(num_midfielders)]
     position_mapping['Forward'] = [(90, y) for y in generate_y_positions(num_forwards)]
     
@@ -52,9 +52,9 @@ def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitc
 
 
 # Assuming maximum number of players per role (you can adjust these numbers)
-num_defenders = 5
-num_midfielders = 4
-num_forwards = 1
+num_defenders = 4
+num_midfielders = 3
+num_forwards = 3
 
 position_mapping = generate_position_mapping(num_defenders, num_midfielders, num_forwards)
 
@@ -82,10 +82,10 @@ def draw_pitch_with_players(players, club_colors):
 # Example usage
 players = [
     ('Player 1', 'Goalkeeper', 'Club A'),
-    ('Player 2', 'Defender', 'Club B'),
+    ('Player 2', 'Forward', 'Club B'),
     ('Player 3', 'Defender', 'Club C'),
     ('Player 4', 'Midfielder', 'Club A'),
-    ('Player 5', 'Midfielder', 'Club B'),
+    ('Player 5', 'Forward', 'Club B'),
     ('Player 6', 'Forward', 'Club C'),
     ('Player 7', 'Midfielder', 'Club A'),
     ('Player 8', 'Midfielder', 'Club B'),
