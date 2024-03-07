@@ -23,22 +23,37 @@ margins_css = """
 """
 
 st.markdown(margins_css, unsafe_allow_html=True)
-def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=70):
-    position_mapping = {'Goalkeeper': (10, 40)}  # Goalkeeper's position is typically fixed
+
+
+def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=80, pitch_width=100):
+    position_mapping = {'Goalkeeper': (10, pitch_height // 2)}  # Goalkeeper's position is fixed at the center of the goal line
     
-    # Dynamically generate positions for Defenders, Midfielders, and Forwards
-    defender_spots = np.linspace(10, pitch_height, num_defenders)
-    midfielder_spots = np.linspace(10, pitch_height, num_midfielders)
-    forward_spots = np.linspace(10, pitch_height, num_forwards)
-    
-    position_mapping['Defender'] = [(30, y) for y in defender_spots]
-    position_mapping['Midfielder'] = [(60, y) for y in midfielder_spots]
-    position_mapping['Forward'] = [(90, y) for y in forward_spots]
+    # Function to generate y positions starting from the center
+    def generate_y_positions(num_players):
+        center = pitch_height / 2
+        positions = []
+        if num_players % 2 == 0:  # Even number of players
+            step = pitch_height / (num_players + 1) + 5
+            for i in range(num_players // 2):
+                positions.extend([center - (i + 0.5) * step, center + (i + 0.5) * step])
+        else:  # Odd number of players
+            step = pitch_height / num_players
+            positions.append(center)
+            for i in range(1, num_players // 2 + 1):
+                positions.extend([center - i * step, center + i * step])
+        
+        return sorted(positions)
+
+    position_mapping['Defender'] = [(30, y) for y in generate_y_positions(num_defenders)]
+    position_mapping['Midfielder'] = [(60, y) for y in generate_y_positions(num_midfielders)]
+    position_mapping['Forward'] = [(90, y) for y in generate_y_positions(num_forwards)]
     
     return position_mapping
+
+
 # Assuming maximum number of players per role (you can adjust these numbers)
-num_defenders = 4
-num_midfielders = 5
+num_defenders = 5
+num_midfielders = 4
 num_forwards = 1
 
 position_mapping = generate_position_mapping(num_defenders, num_midfielders, num_forwards)
@@ -74,7 +89,7 @@ players = [
     ('Player 6', 'Forward', 'Club C'),
     ('Player 7', 'Midfielder', 'Club A'),
     ('Player 8', 'Midfielder', 'Club B'),
-    ('Player 9', 'Midfielder', 'Club C'),
+    ('Player 9', 'Defender', 'Club C'),
     ('Player 10', 'Defender', 'Club A'),
     ('Player 11', 'Defender', 'Club D')
 ]
