@@ -4,6 +4,7 @@ import numpy as np
 from mplsoccer import Pitch, VerticalPitch
 import matplotlib.pyplot as plt
 from streamlit_extras.row import row
+import time
 
 st.set_page_config(
     page_title="Main Page"
@@ -23,6 +24,9 @@ margins_css = """
 """
 
 st.markdown(margins_css, unsafe_allow_html=True)
+
+if 'show_container' not in st.session_state:
+    st.session_state.show_container = True
 
 
 def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=80, pitch_width=100):
@@ -53,8 +57,8 @@ def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitc
 
 # Assuming maximum number of players per role (you can adjust these numbers)
 num_defenders = 4
-num_midfielders = 3
-num_forwards = 3
+num_midfielders = 4
+num_forwards = 2
 
 position_mapping = generate_position_mapping(num_defenders, num_midfielders, num_forwards)
 
@@ -85,10 +89,10 @@ players = [
     ('Player 2', 'Forward', 'Club B'),
     ('Player 3', 'Defender', 'Club C'),
     ('Player 4', 'Midfielder', 'Club A'),
-    ('Player 5', 'Forward', 'Club B'),
-    ('Player 6', 'Forward', 'Club C'),
+    ('Player 5', 'Midfielder', 'Club B'),
+    ('Player 6', 'Midfielder', 'Club C'),
     ('Player 7', 'Midfielder', 'Club A'),
-    ('Player 8', 'Midfielder', 'Club B'),
+    ('Player 8', 'Forward', 'Club B'),
     ('Player 9', 'Defender', 'Club C'),
     ('Player 10', 'Defender', 'Club A'),
     ('Player 11', 'Defender', 'Club D')
@@ -101,11 +105,74 @@ club_colors = {
     'Club D': 'purple'
 }
 
-row1 = row([2.6,2,1], vertical_align="center")
-# Draw the pitch with players
-fig = draw_pitch_with_players(players, club_colors)
-row1.pyplot(fig)
+col1, col2, col3, col4 = st.columns([1.1, 0.05, 1.1, 0.05])
 
+with col4:
+    if st.button(':back:'):
+        st.session_state.show_container = True
+
+def hide_container():
+    st.session_state.show_container = False
+
+def show_recommendation():
+    st.session_state.show_container = False
+    with col3:
+        create_recommendation()
+
+def create_recommendation():
+    st.markdown(
+        """
+        <div style="box-shadow: 0px 0px 20px #ccc; padding: 20px; margin-bottom: 20px; margin-top: 10px; border-radius: 15px;">
+            <h3>Recommendation</h3>
+            <p>Based on the current squad, we recommend the following transfer:</p>
+            <ul>
+                <li>Transfer out: Player 1</li>
+                <li>Transfer in: Player 12</li>
+            </ul>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+# Draw the pitch in the first column, which will span across all rows on the left side.
+with col1:
+    fig = draw_pitch_with_players(players, club_colors)
+    st.pyplot(fig)
+
+# Now, you can define content in the second column, which will appear to the right of the pitch.
+# Each piece of content will be in its own 'row', but since Streamlit is top-down, you'll just continue adding content to col2.
+with col3:
+    # Create a container that will hold your content
+    if st.session_state.show_container:
+        with st.container():
+            st.markdown("""
+                <style>
+                div.stButton > button:first-child {
+                    margin: 5px 5px 5px 45px;
+                }
+                </style>""", unsafe_allow_html=True)
+
+            st.markdown(
+                """
+                <div style="box-shadow: 0px 0px 20px #ccc; padding: 20px; margin-bottom: 20px; border-radius: 15px;">
+                    Want a recommendation for a good transfer?
+                </div>
+                """,
+                unsafe_allow_html=True
+            )
+
+            col1, col2 = st.columns([1, 1], gap="small")
+
+            with col1:
+                if st.button("Yes 👍", on_click=show_recommendation):
+                    # Perform action for Yes
+                    pass
+
+            with col2:
+                if st.button('No 👎', on_click=hide_container):
+                    # Perform action for No: make the content disappear\
+                    pass
+                
 
 st.sidebar.markdown("### Which data should i show you?")
 selected_layers = [
