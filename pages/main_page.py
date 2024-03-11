@@ -7,9 +7,7 @@ from streamlit_extras.row import row
 import time
 from SmartSquad import colors
 
-st.set_page_config(
-    page_title="Main Page"
-    )
+st.set_page_config(page_title="Main Page")
 
 margins_css = """
     <style>
@@ -26,13 +24,17 @@ margins_css = """
 
 st.markdown(margins_css, unsafe_allow_html=True)
 
-if 'show_container' not in st.session_state:
+if "show_container" not in st.session_state:
     st.session_state.show_container = True
 
 
-def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=80, pitch_width=100):
-    position_mapping = {'GK': (14, pitch_height // 2)}  # Goalkeeper's position is fixed at the center of the goal line
-    
+def generate_position_mapping(
+    num_defenders, num_midfielders, num_forwards, pitch_height=80, pitch_width=100
+):
+    position_mapping = {
+        "GK": (14, pitch_height // 2)
+    }  # Goalkeeper's position is fixed at the center of the goal line
+
     # Function to generate y positions starting from the center
     def generate_y_positions(num_players):
         center = pitch_height / 2
@@ -46,51 +48,67 @@ def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitc
             positions.append(center)
             for i in range(1, num_players // 2 + 1):
                 positions.extend([center - i * step, center + i * step])
-        
+
         return sorted(positions)
 
-    position_mapping['DEF'] = [(34, y) for y in generate_y_positions(num_defenders)]
-    position_mapping['MID'] = [(60, y) for y in generate_y_positions(num_midfielders)]
-    position_mapping['FWD'] = [(92, y) for y in generate_y_positions(num_forwards)]
-    
+    position_mapping["DEF"] = [(34, y) for y in generate_y_positions(num_defenders)]
+    position_mapping["MID"] = [(60, y) for y in generate_y_positions(num_midfielders)]
+    position_mapping["FWD"] = [(92, y) for y in generate_y_positions(num_forwards)]
+
     return position_mapping
 
 
 # extract number of players in each position from the st.session_state['players'] list
-num_defenders = len([player for player in st.session_state['players'] if player.split(",")[0] == "DEF"])
-num_midfielders = len([player for player in st.session_state['players'] if player.split(",")[0] == "MID"])
-num_forwards = len([player for player in st.session_state['players'] if player.split(",")[0] == "FWD"])
+num_defenders = len(
+    [player for player in st.session_state["players"] if player.split(",")[0] == "DEF"]
+)
+num_midfielders = len(
+    [player for player in st.session_state["players"] if player.split(",")[0] == "MID"]
+)
+num_forwards = len(
+    [player for player in st.session_state["players"] if player.split(",")[0] == "FWD"]
+)
 
-position_mapping = generate_position_mapping(num_defenders, num_midfielders, num_forwards)
+position_mapping = generate_position_mapping(
+    num_defenders, num_midfielders, num_forwards
+)
 
 # Modify the sidebar section to allow the selection of a statistic
 st.sidebar.markdown("### Select a statistic to display:")
 selected_stats = [
     layer
-    for layer_name, layer in {"Expected score":"Expected score", "Next Game": "Next Game", "Price":"Price", "% owned": "% owned"}.items()
+    for layer_name, layer in {
+        "Expected score": "Expected score",
+        "Next Game": "Next Game",
+        "Price": "Price",
+        "% owned": "% owned",
+    }.items()
     if st.sidebar.checkbox(layer_name, False)
 ]
 
+
 def draw_pitch_with_players(players, colors, selected_stats, player_stats):
     fig, ax = plt.subplots(figsize=(7, 14))
-    pitch = VerticalPitch(pitch_color='grass', line_color='white', stripe=True)
+    pitch = VerticalPitch(pitch_color="grass", line_color="white", stripe=True)
     pitch.draw(ax=ax)
 
-    used_positions = {'DEF': 0, 'MID': 0, 'FWD': 0}
+    used_positions = {"DEF": 0, "MID": 0, "FWD": 0}
 
     for position, player, club in players:
-        if position == 'GK':
+        if position == "GK":
             x, y = position_mapping[position]
         else:
             x, y = position_mapping[position][used_positions[position]]
             used_positions[position] += 1
 
-        color = colors.get(club, 'grey')
-        pitch.scatter(x, y, s=600, ax=ax, edgecolors='black', c=color, zorder=2)
-        plt.text(y, x - 6, player, fontsize=15, ha='center', va='center')
+        color = colors.get(club, "grey")
+        pitch.scatter(x, y, s=600, ax=ax, edgecolors="black", c=color, zorder=2)
+        plt.text(y, x - 6, player, fontsize=15, ha="center", va="center")
 
         # Iterate over each player and fetch & display the selected stats below the player's name
-        stat_values = [f'{player_stats[player].get(stat, "N/A")}' for stat in selected_stats]
+        stat_values = [
+            f'{player_stats[player].get(stat, "N/A")}' for stat in selected_stats
+        ]
         # Insert a newline character after every two stats
         formatted_stat_values = " | ".join(stat_values[:2])
         if len(stat_values) > 2:
@@ -99,27 +117,94 @@ def draw_pitch_with_players(players, colors, selected_stats, player_stats):
             formatted_stat_values = ""
 
         # Create a text box with background for the formatted stat values
-        bbox_props = dict(boxstyle="round,pad=0.8", fc="white", ec="black", lw=1, alpha=0.5)
-        ax.text(y, x - 12, formatted_stat_values, fontsize=10, ha='center', va='center', fontweight="bold", bbox=bbox_props)
+        bbox_props = dict(
+            boxstyle="round,pad=0.8", fc="white", ec="black", lw=1, alpha=0.5
+        )
+        ax.text(
+            y,
+            x - 12,
+            formatted_stat_values,
+            fontsize=10,
+            ha="center",
+            va="center",
+            fontweight="bold",
+            bbox=bbox_props,
+        )
 
     return fig
 
+
 # extract player, position and club from the st.session_state['players'] list
-players = [player.split(",") for player in st.session_state['players']]
+players = [player.split(",") for player in st.session_state["players"]]
 
 # Create a dictionary to store the stats for each player
 player_stats = {
-    players[0][1]: {"Expected score": 5.2, "Next Game": "Team 1", "Price": 5.5, "% owned": 12},
-    players[1][1]: {"Expected score": 6.5, "Next Game": "Team 2", "Price": 6.5, "% owned": 15},
-    players[2][1]: {"Expected score": 4.5, "Next Game": "Team 3", "Price": 4.5, "% owned": 10},
-    players[3][1]: {"Expected score": 5.0, "Next Game": "Team 4", "Price": 5.0, "% owned": 8},
-    players[4][1]: {"Expected score": 6.0, "Next Game": "Team 5", "Price": 6.0, "% owned": 20},
-    players[5][1]: {"Expected score": 5.5, "Next Game": "Team 6", "Price": 5.5, "% owned": 18},
-    players[6][1]: {"Expected score": 5.0, "Next Game": "Team 7", "Price": 5.0, "% owned": 14},
-    players[7][1]: {"Expected score": 4.5, "Next Game": "Team 8", "Price": 4.5, "% owned": 12},
-    players[8][1]: {"Expected score": 6.0, "Next Game": "Team 9", "Price": 6.0, "% owned": 16},
-    players[9][1]: {"Expected score": 5.5, "Next Game": "Team 10", "Price": 5.5, "% owned": 14},
-    players[10][1]: {"Expected score": 5.0, "Next Game": "Team 11", "Price": 5.0, "% owned": 12}
+    players[0][1]: {
+        "Expected score": 5.2,
+        "Next Game": "Team 1",
+        "Price": 5.5,
+        "% owned": 12,
+    },
+    players[1][1]: {
+        "Expected score": 6.5,
+        "Next Game": "Team 2",
+        "Price": 6.5,
+        "% owned": 15,
+    },
+    players[2][1]: {
+        "Expected score": 4.5,
+        "Next Game": "Team 3",
+        "Price": 4.5,
+        "% owned": 10,
+    },
+    players[3][1]: {
+        "Expected score": 5.0,
+        "Next Game": "Team 4",
+        "Price": 5.0,
+        "% owned": 8,
+    },
+    players[4][1]: {
+        "Expected score": 6.0,
+        "Next Game": "Team 5",
+        "Price": 6.0,
+        "% owned": 20,
+    },
+    players[5][1]: {
+        "Expected score": 5.5,
+        "Next Game": "Team 6",
+        "Price": 5.5,
+        "% owned": 18,
+    },
+    players[6][1]: {
+        "Expected score": 5.0,
+        "Next Game": "Team 7",
+        "Price": 5.0,
+        "% owned": 14,
+    },
+    players[7][1]: {
+        "Expected score": 4.5,
+        "Next Game": "Team 8",
+        "Price": 4.5,
+        "% owned": 12,
+    },
+    players[8][1]: {
+        "Expected score": 6.0,
+        "Next Game": "Team 9",
+        "Price": 6.0,
+        "% owned": 16,
+    },
+    players[9][1]: {
+        "Expected score": 5.5,
+        "Next Game": "Team 10",
+        "Price": 5.5,
+        "% owned": 14,
+    },
+    players[10][1]: {
+        "Expected score": 5.0,
+        "Next Game": "Team 11",
+        "Price": 5.0,
+        "% owned": 12,
+    },
 }
 
 # use the club colors from SmartSquad.py
@@ -127,16 +212,19 @@ player_stats = {
 col1, col2, col3, col4 = st.columns([1.1, 0.05, 1.1, 0.05])
 
 with col4:
-    if st.button(':back:'):
+    if st.button(":back:"):
         st.session_state.show_container = True
+
 
 def hide_container():
     st.session_state.show_container = False
+
 
 def show_recommendation():
     st.session_state.show_container = False
     with col3:
         create_recommendation()
+
 
 def create_recommendation():
     st.markdown(
@@ -150,8 +238,9 @@ def create_recommendation():
             </ul>
         </div>
         """,
-        unsafe_allow_html=True
+        unsafe_allow_html=True,
     )
+
 
 # Draw the pitch in the first column, which will span across all rows on the left side.
 with col1:
@@ -164,12 +253,15 @@ with col3:
     # Create a container that will hold your content
     if st.session_state.show_container:
         with st.container():
-            st.markdown("""
+            st.markdown(
+                """
                 <style>
                 div.stButton > button:first-child {
                     margin: 5px 5px 5px 45px;
                 }
-                </style>""", unsafe_allow_html=True)
+                </style>""",
+                unsafe_allow_html=True,
+            )
 
             st.markdown(
                 """
@@ -177,7 +269,7 @@ with col3:
                     Want a recommendation for a good transfer?
                 </div>
                 """,
-                unsafe_allow_html=True
+                unsafe_allow_html=True,
             )
 
             col1, col2 = st.columns([1, 1], gap="small")
@@ -188,6 +280,6 @@ with col3:
                     pass
 
             with col2:
-                if st.button('No 👎', on_click=hide_container):
+                if st.button("No 👎", on_click=hide_container):
                     # Perform action for No: make the content disappear\
                     pass
