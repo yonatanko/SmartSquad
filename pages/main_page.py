@@ -28,11 +28,9 @@ if "show_container" not in st.session_state:
     st.session_state.show_container = True
 
 
-def generate_position_mapping(
-    num_defenders, num_midfielders, num_forwards, pitch_height=80, pitch_width=100
-):
+def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=80):
     position_mapping = {
-        "GK": (14, pitch_height // 2)
+        "GK": (10, pitch_height // 2)
     }  # Goalkeeper's position is fixed at the center of the goal line
 
     # Function to generate y positions starting from the center
@@ -50,7 +48,8 @@ def generate_position_mapping(
                 positions.extend([center - i * step, center + i * step])
 
         return sorted(positions)
-
+    
+    position_mapping["SUB"] = [(-10, y) for y in generate_y_positions(4)]
     position_mapping["DEF"] = [(34, y) for y in generate_y_positions(num_defenders)]
     position_mapping["MID"] = [(60, y) for y in generate_y_positions(num_midfielders)]
     position_mapping["FWD"] = [(92, y) for y in generate_y_positions(num_forwards)]
@@ -61,13 +60,13 @@ def generate_position_mapping(
 # extract number of players in each position from the st.session_state['players'] list
 num_defenders = len(
     [player for player in st.session_state["players"] if player.split(",")[0] == "DEF"]
-)
+) -1
 num_midfielders = len(
     [player for player in st.session_state["players"] if player.split(",")[0] == "MID"]
-)
+) -1
 num_forwards = len(
     [player for player in st.session_state["players"] if player.split(",")[0] == "FWD"]
-)
+) -1
 
 position_mapping = generate_position_mapping(
     num_defenders, num_midfielders, num_forwards
@@ -87,14 +86,14 @@ selected_stats = [
 ]
 
 
-def draw_pitch_with_players(players, colors, selected_stats, player_stats):
+def draw_pitch_with_players(players, subs, colors, selected_stats, player_stats):
     fig, ax = plt.subplots(figsize=(7, 14))
-    pitch = VerticalPitch(pitch_color="grass", line_color="white", stripe=True)
+    pitch = VerticalPitch(pitch_color="grass", line_color="white", stripe=True, pad_bottom=25)
     pitch.draw(ax=ax)
 
-    used_positions = {"DEF": 0, "MID": 0, "FWD": 0}
+    used_positions = {"DEF": 0, "MID": 0, "FWD": 0, "SUB": 0}
 
-    for position, player, club in players:
+    for position, player, club in players+subs:
         if position == "GK":
             x, y = position_mapping[position]
         else:
@@ -103,7 +102,7 @@ def draw_pitch_with_players(players, colors, selected_stats, player_stats):
 
         color = colors.get(club, "grey")
         pitch.scatter(x, y, s=600, ax=ax, edgecolors="black", c=color, zorder=2)
-        plt.text(y, x - 6, player, fontsize=15, ha="center", va="center")
+        plt.text(y, x + 6, player, fontsize=15, ha="center", va="center")
 
         # Iterate over each player and fetch & display the selected stats below the player's name
         stat_values = [
@@ -118,11 +117,11 @@ def draw_pitch_with_players(players, colors, selected_stats, player_stats):
 
         # Create a text box with background for the formatted stat values
         bbox_props = dict(
-            boxstyle="round,pad=0.8", fc="white", ec="black", lw=1, alpha=0.5
+            boxstyle="round,pad=0.6", fc="white", ec="black", lw=1, alpha=0.5
         )
         ax.text(
             y,
-            x - 12,
+            x - 8,
             formatted_stat_values,
             fontsize=10,
             ha="center",
@@ -136,6 +135,15 @@ def draw_pitch_with_players(players, colors, selected_stats, player_stats):
 
 # extract player, position and club from the st.session_state['players'] list
 players = [player.split(",") for player in st.session_state["players"]]
+# take out the last player in each position to be used as a substitute
+subs = []
+for position in ["GK", "DEF", "MID", "FWD"]:
+    for i, player in enumerate(players):
+        if player[0] == position:
+            curr_sub = players.pop(i)
+            curr_sub[0] = "SUB"
+            subs.append(curr_sub)
+            break
 
 # Create a dictionary to store the stats for each player
 player_stats = {
@@ -205,6 +213,30 @@ player_stats = {
         "Price": 5.0,
         "% owned": 12,
     },
+    subs[0][1]: {
+        "Expected score": 4.5,
+        "Next Game": "Team 12",
+        "Price": 4.5,
+        "% owned": 10,
+    },
+    subs[1][1]: {
+        "Expected score": 5.0,
+        "Next Game": "Team 13",
+        "Price": 5.0,
+        "% owned": 8,
+    },
+    subs[2][1]: {
+        "Expected score": 6.0,
+        "Next Game": "Team 14",
+        "Price": 6.0,
+        "% owned": 20,
+    },
+    subs[3][1]: {
+        "Expected score": 5.5,
+        "Next Game": "Team 15",
+        "Price": 5.5,
+        "% owned": 18,
+    },
 }
 
 # use the club colors from SmartSquad.py
@@ -244,7 +276,7 @@ def create_recommendation():
 
 # Draw the pitch in the first column, which will span across all rows on the left side.
 with col1:
-    fig = draw_pitch_with_players(players, colors, selected_stats, player_stats)
+    fig = draw_pitch_with_players(players, subs, colors, selected_stats, player_stats)
     st.pyplot(fig)
 
 # Now, you can define content in the second column, which will appear to the right of the pitch.
