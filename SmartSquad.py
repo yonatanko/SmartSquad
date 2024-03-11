@@ -1,6 +1,8 @@
 import streamlit as st
 from streamlit_extras.switch_page_button import switch_page
 from st_pages import Page, show_pages, add_page_title
+import pandas as pd
+from annotated_text import annotated_text
 
 st.set_page_config(
     page_title="SmartSquad",
@@ -27,7 +29,45 @@ show_pages(
     ]
 )
 
-players_names = [f"{i}" for i in range(15)]
+# based on the teams in teams.csv, build colors dict
+colors = {
+    "Arsenal": "#EF0107",
+    "Aston Villa": "#95BFE5",
+    "Bournemouth": "#DA291C",
+    "Brentford": "#FFDB00",
+    "Brighton": "#0057B8",
+    "Burnley": "#6C1D45",
+    "Chelsea": "#034694",
+    "Crystal Palace": "#1B458F",
+    "Everton": "#003399",
+    "Fulham": "#000000",
+    "Leicester": "#003090",
+    "Liverpool": "#C8102E",
+    "Luton": "#FF5000",
+    "Man City": "#6CABDD",
+    "Man Utd": "#DA291C",
+    "Newcastle": "#241F20",
+    "Nott'm Forest": "#FFCC00",
+    "Sheffield Utd": "#EE2737",
+    "Spurs": "#102257",
+    "West Ham": "#7A263A",
+    "Wolves": "#FDB913"
+}
+
+# Initialize the players list
+players_df = pd.read_csv("players_raw.csv")
+players_df = players_df[["web_name", "element_type", "team"]]
+
+teams_df = pd.read_csv("teams.csv")
+teams_df = teams_df[["id", "name"]].rename(columns={"id": "team"})
+# map team id to team name
+players_df = players_df.merge(teams_df, on="team")
+players_df = players_df[["web_name", "element_type", "name"]]
+players_df = players_df.rename(columns={"web_name": "Player", "element_type": "Position", "name": "Team"})
+players_df["Position"] = players_df["Position"].map({1: "GK", 2: "DEF", 3: "MID", 4: "FWD"})
+players_df["list_item"] = players_df["Position"] + "," + players_df["Player"] + "," + players_df["Team"]
+
+players = players_df["list_item"].tolist()
 
 if 'players' not in st.session_state:
     st.session_state['players'] = []
@@ -58,7 +98,7 @@ col1, col3 = st.columns([1.2, 1])
 
 # Manage player addition logic based on the count
 def check_count():
-    if len(st.session_state['players']) == 3:
+    if len(st.session_state['players']) == 11:
         st.session_state["disabled"] = True
     else:
         st.session_state["disabled"] = False
@@ -73,7 +113,7 @@ with col1:
          This app is designed to help you manage your fantasy football team.
          You can use it to track your players' performance, compare them to other players, and make informed decisions about your team.""")
 
-    selected_player = st.selectbox("Select player", players_names, key="selected_player", disabled=st.session_state["disabled"])
+    selected_player = st.selectbox("Select player", players, key="selected_player", disabled=st.session_state["disabled"], placeholder="Select a player to add to your squad", index=None)
     add_player_button = st.button("Add Player", on_click=add_player, key="add_player", disabled=st.session_state["disabled"])
     
 
@@ -89,11 +129,14 @@ with col3:
     # Display each player with a remove button
     for index, player in enumerate(st.session_state['players'], start=1):
         player_col, remove_col = st.columns([3, 1])
-        player_col.write(f"Player {index}: {player}")
+        with player_col:
+            # drop the team name from the list item
+            player_and_pos = player.split(",")[0] + u'\u00A0' * 13 + player.split(",")[1]
+            annotated_text((player_and_pos, player.split(",")[2], colors[player.split(",")[2]]))
         if remove_col.button("Remove 🗑️", key=f"remove_{index}"):
             remove_player(player)
 
     # Place the Done button outside check_count to avoid DuplicateWidgetID error
-    if len(st.session_state['players']) == 3:
+    if len(st.session_state['players']) == 11:
         if st.button("Done", key="done_picking"):
             switch_page("Main Page")

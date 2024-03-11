@@ -5,6 +5,7 @@ from mplsoccer import Pitch, VerticalPitch
 import matplotlib.pyplot as plt
 from streamlit_extras.row import row
 import time
+from SmartSquad import colors
 
 st.set_page_config(
     page_title="Main Page"
@@ -30,7 +31,7 @@ if 'show_container' not in st.session_state:
 
 
 def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=80, pitch_width=100):
-    position_mapping = {'Goalkeeper': (10, pitch_height // 2)}  # Goalkeeper's position is fixed at the center of the goal line
+    position_mapping = {'GK': (14, pitch_height // 2)}  # Goalkeeper's position is fixed at the center of the goal line
     
     # Function to generate y positions starting from the center
     def generate_y_positions(num_players):
@@ -48,62 +49,80 @@ def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitc
         
         return sorted(positions)
 
-    position_mapping['Defender'] = [(32, y) for y in generate_y_positions(num_defenders)]
-    position_mapping['Midfielder'] = [(60, y) for y in generate_y_positions(num_midfielders)]
-    position_mapping['Forward'] = [(90, y) for y in generate_y_positions(num_forwards)]
+    position_mapping['DEF'] = [(34, y) for y in generate_y_positions(num_defenders)]
+    position_mapping['MID'] = [(60, y) for y in generate_y_positions(num_midfielders)]
+    position_mapping['FWD'] = [(92, y) for y in generate_y_positions(num_forwards)]
     
     return position_mapping
 
 
-# Assuming maximum number of players per role (you can adjust these numbers)
-num_defenders = 4
-num_midfielders = 4
-num_forwards = 2
+# extract number of players in each position from the st.session_state['players'] list
+num_defenders = len([player for player in st.session_state['players'] if player.split(",")[0] == "DEF"])
+num_midfielders = len([player for player in st.session_state['players'] if player.split(",")[0] == "MID"])
+num_forwards = len([player for player in st.session_state['players'] if player.split(",")[0] == "FWD"])
 
 position_mapping = generate_position_mapping(num_defenders, num_midfielders, num_forwards)
 
-def draw_pitch_with_players(players, club_colors):
-    fig, ax = plt.subplots(figsize=(6, 8))
+# Modify the sidebar section to allow the selection of a statistic
+st.sidebar.markdown("### Select a statistic to display:")
+selected_stats = [
+    layer
+    for layer_name, layer in {"Expected score":"Expected score", "Next Game": "Next Game", "Price":"Price", "% owned": "% owned"}.items()
+    if st.sidebar.checkbox(layer_name, False)
+]
+
+def draw_pitch_with_players(players, colors, selected_stats, player_stats):
+    fig, ax = plt.subplots(figsize=(7, 14))
     pitch = VerticalPitch(pitch_color='grass', line_color='white', stripe=True)
     pitch.draw(ax=ax)
 
-    # Keep track of used positions to avoid overlap
-    used_positions = {'Defender': 0, 'Midfielder': 0, 'Forward': 0}
+    used_positions = {'DEF': 0, 'MID': 0, 'FWD': 0}
 
-    for player, position, club in players:
-        if position == 'Goalkeeper':
+    for position, player, club in players:
+        if position == 'GK':
             x, y = position_mapping[position]
         else:
             x, y = position_mapping[position][used_positions[position]]
             used_positions[position] += 1
 
-        color = club_colors.get(club, 'grey')  # Default to grey if club color not found
+        color = colors.get(club, 'grey')
         pitch.scatter(x, y, s=600, ax=ax, edgecolors='black', c=color, zorder=2)
-        plt.text(y, x-8, player, fontsize=10, ha='center', va='center')
+        plt.text(y, x - 6, player, fontsize=15, ha='center', va='center')
+
+        # Iterate over each player and fetch & display the selected stats below the player's name
+        stat_values = [f'{player_stats[player].get(stat, "N/A")}' for stat in selected_stats]
+        # Insert a newline character after every two stats
+        formatted_stat_values = " | ".join(stat_values[:2])
+        if len(stat_values) > 2:
+            formatted_stat_values += "\n" + " | ".join(stat_values[2:])
+        if len(stat_values) == 0:
+            formatted_stat_values = ""
+
+        # Create a text box with background for the formatted stat values
+        bbox_props = dict(boxstyle="round,pad=0.8", fc="white", ec="black", lw=1, alpha=0.5)
+        ax.text(y, x - 12, formatted_stat_values, fontsize=10, ha='center', va='center', fontweight="bold", bbox=bbox_props)
 
     return fig
 
-# Example usage
-players = [
-    ('Player 1', 'Goalkeeper', 'Club A'),
-    ('Player 2', 'Forward', 'Club B'),
-    ('Player 3', 'Defender', 'Club C'),
-    ('Player 4', 'Midfielder', 'Club A'),
-    ('Player 5', 'Midfielder', 'Club B'),
-    ('Player 6', 'Midfielder', 'Club C'),
-    ('Player 7', 'Midfielder', 'Club A'),
-    ('Player 8', 'Forward', 'Club B'),
-    ('Player 9', 'Defender', 'Club C'),
-    ('Player 10', 'Defender', 'Club A'),
-    ('Player 11', 'Defender', 'Club D')
-]
+# extract player, position and club from the st.session_state['players'] list
+players = [player.split(",") for player in st.session_state['players']]
 
-club_colors = {
-    'Club A': 'blue',
-    'Club B': 'red',
-    'Club C': 'green',
-    'Club D': 'purple'
+# Create a dictionary to store the stats for each player
+player_stats = {
+    players[0][1]: {"Expected score": 5.2, "Next Game": "Team 1", "Price": 5.5, "% owned": 12},
+    players[1][1]: {"Expected score": 6.5, "Next Game": "Team 2", "Price": 6.5, "% owned": 15},
+    players[2][1]: {"Expected score": 4.5, "Next Game": "Team 3", "Price": 4.5, "% owned": 10},
+    players[3][1]: {"Expected score": 5.0, "Next Game": "Team 4", "Price": 5.0, "% owned": 8},
+    players[4][1]: {"Expected score": 6.0, "Next Game": "Team 5", "Price": 6.0, "% owned": 20},
+    players[5][1]: {"Expected score": 5.5, "Next Game": "Team 6", "Price": 5.5, "% owned": 18},
+    players[6][1]: {"Expected score": 5.0, "Next Game": "Team 7", "Price": 5.0, "% owned": 14},
+    players[7][1]: {"Expected score": 4.5, "Next Game": "Team 8", "Price": 4.5, "% owned": 12},
+    players[8][1]: {"Expected score": 6.0, "Next Game": "Team 9", "Price": 6.0, "% owned": 16},
+    players[9][1]: {"Expected score": 5.5, "Next Game": "Team 10", "Price": 5.5, "% owned": 14},
+    players[10][1]: {"Expected score": 5.0, "Next Game": "Team 11", "Price": 5.0, "% owned": 12}
 }
+
+# use the club colors from SmartSquad.py
 
 col1, col2, col3, col4 = st.columns([1.1, 0.05, 1.1, 0.05])
 
@@ -136,7 +155,7 @@ def create_recommendation():
 
 # Draw the pitch in the first column, which will span across all rows on the left side.
 with col1:
-    fig = draw_pitch_with_players(players, club_colors)
+    fig = draw_pitch_with_players(players, colors, selected_stats, player_stats)
     st.pyplot(fig)
 
 # Now, you can define content in the second column, which will appear to the right of the pitch.
@@ -172,11 +191,3 @@ with col3:
                 if st.button('No 👎', on_click=hide_container):
                     # Perform action for No: make the content disappear\
                     pass
-                
-
-st.sidebar.markdown("### Which data should i show you?")
-selected_layers = [
-    layer
-    for layer_name, layer in {"Expected score":"Expected score", "Next Game": "Next Game", "Price":"Price", "% owned": "% owned"}.items()
-    if st.sidebar.checkbox(layer_name, False)
-]
