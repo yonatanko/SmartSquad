@@ -206,7 +206,7 @@ with col3:
             annotated_text(
                 (player_and_pos, player.split(",")[2], colors[player.split(",")[2]])
             )
-        if remove_col.button("Remove 🗑️", key=f"remove_{index}"):
+        if remove_col.button("Remove 🗑️", key=f"remove_{index}", ):
             remove_player(player)
 
     # Place the Done button outside check_count to avoid DuplicateWidgetID error

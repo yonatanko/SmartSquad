@@ -135,6 +135,7 @@ def draw_pitch_with_players(players, subs, colors, selected_stats, player_stats)
 
 # extract player, position and club from the st.session_state['players'] list
 players = [player.split(",") for player in st.session_state["players"]]
+
 # take out the last player in each position to be used as a substitute
 subs = []
 for position in ["GK", "DEF", "MID", "FWD"]:
