@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from analytics.fpl_utils.fpl_api_collection import (
-    get_league_table, get_current_gw, get_fixt_dfs, get_bootstrap_data
+    get_league_table, get_current_gw, get_fixt_dfs, get_bootstrap_data, get_player_data, get_player_id_dict, get_name_to_id_dict
 )
 import json
 import os
@@ -12,7 +12,11 @@ base_url = 'https://fantasy.premierleague.com/api/'
 
 st.set_page_config(page_title='PL Table', page_icon=':sports-medal:', layout='wide')
 
-col1, col2 = st.columns([2,1])
+if "selected_stats" not in st.session_state:
+    st.session_state.selected_stats = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
+
+
+col1, col2 = st.columns([1.4,1], gap="Large")
 
 league_df = get_league_table()
 
@@ -184,89 +188,90 @@ def build_all_seasons_df(team_1_name, team_2_name):
     return all_seasons_df
 
 def extract_key_stats_updated(stats_str):
-        stats = json.loads(stats_str.replace("'", "\""))
-        extracted_stats = {
-            'home_goals': 0,  # Include goals scored by home and own goals by away
-            'away_goals': 0,  # Include goals scored by away and own goals by home
-            'home_yellow_cards': 0,
-            'away_yellow_cards': 0,
-            'home_red_cards': 0,
-            'away_red_cards': 0,
-            'home_assists': 0,
-            'away_assists': 0
-        }
+    stats = json.loads(stats_str.replace("'", "\""))
+    extracted_stats = {
+        'home_goals': 0,  
+        'away_goals': 0,
+        'home_yellow_cards': 0,
+        'away_yellow_cards': 0,
+        'home_red_cards': 0,
+        'away_red_cards': 0,
+        'home_assists': 0,
+        'away_assists': 0
+    }
 
-        for stat in stats:
-            if stat['identifier'] == 'goals_scored':
-                extracted_stats['home_goals'] += sum(item['value'] for item in stat['h'])
-                extracted_stats['away_goals'] += sum(item['value'] for item in stat['a'])
-            elif stat['identifier'] == 'own_goals':
-                # Add away team's own goals to home team's goals and vice versa
-                extracted_stats['home_goals'] += sum(item['value'] for item in stat['a'])
-                extracted_stats['away_goals'] += sum(item['value'] for item in stat['h'])
-            elif stat['identifier'] == 'yellow_cards':
-                extracted_stats['home_yellow_cards'] = sum(item['value'] for item in stat['h'])
-                extracted_stats['away_yellow_cards'] = sum(item['value'] for item in stat['a'])
-            elif stat['identifier'] == 'red_cards':
-                extracted_stats['home_red_cards'] = sum(item['value'] for item in stat['h'])
-                extracted_stats['away_red_cards'] = sum(item['value'] for item in stat['a'])
-            elif stat['identifier'] == 'assists':
-                extracted_stats['home_assists'] = sum(item['value'] for item in stat['h'])
-                extracted_stats['away_assists'] = sum(item['value'] for item in stat['a'])
+    for stat in stats:
+        if stat['identifier'] == 'goals_scored':
+            extracted_stats['home_goals'] += sum(item['value'] for item in stat['h'])
+            extracted_stats['away_goals'] += sum(item['value'] for item in stat['a'])
+        elif stat['identifier'] == 'own_goals':
+            extracted_stats['home_goals'] += sum(item['value'] for item in stat['a'])
+            extracted_stats['away_goals'] += sum(item['value'] for item in stat['h'])
+        elif stat['identifier'] == 'yellow_cards':
+            extracted_stats['home_yellow_cards'] = sum(item['value'] for item in stat['h'])
+            extracted_stats['away_yellow_cards'] = sum(item['value'] for item in stat['a'])
+        elif stat['identifier'] == 'red_cards':
+            extracted_stats['home_red_cards'] = sum(item['value'] for item in stat['h'])
+            extracted_stats['away_red_cards'] = sum(item['value'] for item in stat['a'])
+        elif stat['identifier'] == 'assists':
+            extracted_stats['home_assists'] = sum(item['value'] for item in stat['h'])
+            extracted_stats['away_assists'] = sum(item['value'] for item in stat['a'])
 
-        return extracted_stats
+    return extracted_stats
 
-def create_head_to_head_stats(team1, team2):
-        if team1 != team2:
-            if not df.empty:
-                for _, row in df.iterrows():
-                    match_stats = extract_key_stats_updated(row['stats'])
-                    if row['team_h_name'] == team1:
-                        team1_stats['home']['goals'].append(match_stats['home_goals'])
-                        team1_stats['home']['yellow_cards'].append(match_stats['home_yellow_cards'])
-                        team1_stats['home']['red_cards'].append(match_stats['home_red_cards'])
-                        team1_stats['home']['season'].append(row['season'])
-                        team1_stats['home']['assists'].append(match_stats['home_assists'])
-                        team2_stats['away']['goals'].append(match_stats['away_goals'])
-                        team2_stats['away']['yellow_cards'].append(match_stats['away_yellow_cards'])
-                        team2_stats['away']['red_cards'].append(match_stats['away_red_cards'])
-                        team2_stats['away']['season'].append(row['season'])
-                        team2_stats['away']['assists'].append(match_stats['away_assists'])
+def create_head_to_head_stats(team1, team2, df):
+    selected_stats = st.session_state["selected_stats"]
+    if team1 != team2 and team1 != None and team2 != None:
+        if not df.empty:
+            for _, row in df.iterrows():
+                match_stats = extract_key_stats_updated(row['stats'])
+                if row['team_h_name'] == team1:
+                    team1_stats['home']['goals'].append(match_stats['home_goals'])
+                    team1_stats['home']['yellow_cards'].append(match_stats['home_yellow_cards'])
+                    team1_stats['home']['red_cards'].append(match_stats['home_red_cards'])
+                    team1_stats['home']['season'].append(row['season'])
+                    team1_stats['home']['assists'].append(match_stats['home_assists'])
+                    team2_stats['away']['goals'].append(match_stats['away_goals'])
+                    team2_stats['away']['yellow_cards'].append(match_stats['away_yellow_cards'])
+                    team2_stats['away']['red_cards'].append(match_stats['away_red_cards'])
+                    team2_stats['away']['season'].append(row['season'])
+                    team2_stats['away']['assists'].append(match_stats['away_assists'])
 
-                        if row['team_h_score'] > row['team_a_score']:
-                            team1_stats['home']['wins'] += 1
-                            team2_stats['away']['losses'] += 1
-                        elif row['team_h_score'] < row['team_a_score']:
-                            team1_stats['home']['losses'] += 1
-                            team2_stats['away']['wins'] += 1
-                        else:
-                            team1_stats['home']['draws'] += 1
-                            team2_stats['away']['draws'] += 1
+                    if row['team_h_score'] > row['team_a_score']:
+                        team1_stats['home']['wins'] += 1
+                        team2_stats['away']['losses'] += 1
+                    elif row['team_h_score'] < row['team_a_score']:
+                        team1_stats['home']['losses'] += 1
+                        team2_stats['away']['wins'] += 1
                     else:
-                        team2_stats['home']['goals'].append(match_stats['home_goals'])
-                        team2_stats['home']['yellow_cards'].append(match_stats['home_yellow_cards'])
-                        team2_stats['home']['red_cards'].append(match_stats['home_red_cards'])
-                        team2_stats['home']['season'].append(row['season'])
-                        team2_stats['home']['assists'].append(match_stats['home_assists'])
-                        team1_stats['away']['goals'].append(match_stats['away_goals'])
-                        team1_stats['away']['yellow_cards'].append(match_stats['away_yellow_cards'])
-                        team1_stats['away']['red_cards'].append(match_stats['away_red_cards'])
-                        team1_stats['away']['season'].append(row['season'])
-                        team1_stats['away']['assists'].append(match_stats['away_assists'])
+                        team1_stats['home']['draws'] += 1
+                        team2_stats['away']['draws'] += 1
+                else:
+                    team2_stats['home']['goals'].append(match_stats['home_goals'])
+                    team2_stats['home']['yellow_cards'].append(match_stats['home_yellow_cards'])
+                    team2_stats['home']['red_cards'].append(match_stats['home_red_cards'])
+                    team2_stats['home']['season'].append(row['season'])
+                    team2_stats['home']['assists'].append(match_stats['home_assists'])
+                    team1_stats['away']['goals'].append(match_stats['away_goals'])
+                    team1_stats['away']['yellow_cards'].append(match_stats['away_yellow_cards'])
+                    team1_stats['away']['red_cards'].append(match_stats['away_red_cards'])
+                    team1_stats['away']['season'].append(row['season'])
+                    team1_stats['away']['assists'].append(match_stats['away_assists'])
 
-                        if row['team_h_score'] > row['team_a_score']:
-                            team2_stats['home']['wins'] += 1
-                            team1_stats['away']['losses'] += 1
-                        elif row['team_h_score'] < row['team_a_score']:
-                            team2_stats['home']['losses'] += 1
-                            team1_stats['away']['wins'] += 1
-                        else:
-                            team2_stats['home']['draws'] += 1
-                            team1_stats['away']['draws'] += 1
+                    if row['team_h_score'] > row['team_a_score']:
+                        team2_stats['home']['wins'] += 1
+                        team1_stats['away']['losses'] += 1
+                    elif row['team_h_score'] < row['team_a_score']:
+                        team2_stats['home']['losses'] += 1
+                        team1_stats['away']['wins'] += 1
+                    else:
+                        team2_stats['home']['draws'] += 1
+                        team1_stats['away']['draws'] += 1
 
-                # create one df with 3 cols: team1, stat, team2.
-                comparsion_df = pd.DataFrame(columns=['Team 1', 'Stat', 'Team 2'])
-                for stat in ['wins','draws', 'losses', 'goals','assists', 'yellow_cards', 'red_cards']:
+            # create one df with 3 cols: team1, stat, team2.
+            comparsion_df = pd.DataFrame(columns=['Team 1', 'Stat', 'Team 2'])
+            for stat in ['wins','draws', 'losses', 'goals','assists', 'yellow_cards', 'red_cards']:
+                if stat.replace('_', ' ').title() in selected_stats:
                     if stat in ['wins', 'draws', 'losses']:
                         team_1_total = team1_stats['home'][stat] + team1_stats['away'][stat]
                         team_2_total = team2_stats['home'][stat] + team2_stats['away'][stat]
@@ -276,34 +281,59 @@ def create_head_to_head_stats(team1, team2):
 
                     comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [team_1_total], 'Stat': [stat], 'Team 2': [team_2_total]}))
 
-                # adding manual stats - won_at_home % and won_away %
-                
+            # adding manual stats - won_at_home % and won_away %
+            if team1_stats['home']['wins'] + team1_stats['home']['draws'] + team1_stats['home']['losses'] > 0 and team2_stats['home']['wins'] + team2_stats['home']['draws'] + team2_stats['home']['losses'] > 0:
                 team_1_won_at_home = (team1_stats['home']['wins'] / (team1_stats['home']['wins'] + team1_stats['home']['draws'] + team1_stats['home']['losses'])) * 100
                 team_2_won_at_home = (team2_stats['home']['wins'] / (team2_stats['home']['wins'] + team2_stats['home']['draws'] + team2_stats['home']['losses'])) * 100
                 team_1_won_away = (team1_stats['away']['wins'] / (team1_stats['away']['wins'] + team1_stats['away']['draws'] + team1_stats['away']['losses'])) * 100
                 team_2_won_away = (team2_stats['away']['wins'] / (team2_stats['away']['wins'] + team2_stats['away']['draws'] + team2_stats['away']['losses'])) * 100
-
-                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_at_home)], 'Stat': ['won_at_home %'], 'Team 2': [int(team_2_won_at_home)]}))
-                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_away)], 'Stat': ['won_away %'], 'Team 2': [int(team_2_won_away)]}))
-                
-                # make df tighter
-                comparsion_df = comparsion_df.reset_index(drop=True)
-                comparsion_df = comparsion_df.T.reset_index(drop=True).T
-                comparsion_df.columns = ['Team 1', 'Stat', 'Team 2']
-                comparsion_df['Stat'] = comparsion_df['Stat'].apply(lambda x: x.replace('_', ' ').title())
-
-                with inner_col2:
-                    s1 = dict(selector='th', props=[('text-align', 'center')])
-                    s2 = dict(selector='td', props=[('text-align', 'center')])
-                    # you can include more styling paramteres, check the pandas docs
-                    table = comparsion_df.style.set_table_styles([s1,s2]).hide(axis=0).to_html()
-                    annotated_text(
-                        (team1, "", colors[team1]), " vs ", (team2, "", colors[team2]), " 2019-2023"
-                    )
-                    st.write(f'{table}', unsafe_allow_html=True)
-
             else:
-                st.write("No head-to-head matches found between the selected teams.")
+                team_1_won_at_home = 0
+                team_2_won_at_home = 0
+                team_1_won_away = 0
+                team_2_won_away = 0
+
+            if 'Won At Home %' in selected_stats:
+                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_at_home)], 'Stat': ['won_at_home %'], 'Team 2': [int(team_2_won_at_home)]}))
+            if 'Won Away %' in selected_stats:
+                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_away)], 'Stat': ['won_away %'], 'Team 2': [int(team_2_won_away)]}))
+            
+            # make df tighter
+            comparsion_df = comparsion_df.reset_index(drop=True)
+            comparsion_df = comparsion_df.T.reset_index(drop=True).T
+            comparsion_df.columns = [team1, 'Stat', team2]
+            comparsion_df['Stat'] = comparsion_df['Stat'].apply(lambda x: x.replace('_', ' ').title()) 
+            
+            
+            with inner_col2:
+                # s1 should be the header, with 3 colors: one to each column
+                s1 = [
+                    dict(selector='th.col_heading', props=[('text-align', 'center')]),
+                    dict(selector=f'th.col_heading.level0.col0', props=[('background-color', colors[team1])]),
+                    dict(selector=f'th.col_heading.level0.col1', props=[('background-color', "")]),
+                    dict(selector=f'th.col_heading.level0.col2', props=[('background-color', colors[team2])])
+                ]
+                s2 = dict(selector='td', props=[('text-align', 'center')])
+                
+                # Initialize the Styler object for the dataframe
+                styler = comparsion_df.style.set_table_styles([s1[0], s1[1], s1[2], s1[3], s2]).hide_index().hide(axis=0)
+
+                # Apply color styles to the team columns
+                styler = styler.applymap(lambda x: f'background-color: {colors[team1]}', subset=[team1])
+                styler = styler.applymap(lambda x: f'background-color: {colors[team2]}', subset=[team2])
+
+                # Convert to HTML
+                table_html = styler.to_html()
+
+                # Annotate and display the text and table
+                st.write("##### 2019-20 to 2023-24 Head-to-Head")
+                st.write(table_html, unsafe_allow_html=True)
+                
+        else:
+            st.write("No head-to-head matches found between the selected teams.")
+    else:
+        if team1 == None or team2 == None:
+            st.warning("You must pick two different teams.")
         else:
             st.warning("Please select two different teams.")
 
@@ -330,8 +360,31 @@ with col1:
     with inner_col1:
         team1 = st.selectbox('Choose Team 1:', options=sorted(team_names), placeholder='Select Team 1', index=None, on_change=None)
         team2 = st.selectbox('Choose Team 2:', options=sorted(team_names), placeholder='Select Team 2', index=None, on_change=None)
-        if st.button('Show Head-to-Head Stats'):
-            df = build_all_seasons_df(team1, team2)
-            df.to_csv('head_to_head.csv')
-            create_head_to_head_stats(team1, team2)
+        df = build_all_seasons_df(team1, team2)
+        # Here we define the stats options for the multiselect widget.
+        stats_options = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
+        st.session_state["selected_stats"] = st.multiselect('Select stats to show:', stats_options, default=stats_options, on_change=None)
+        create_head_to_head_stats(team1, team2, df)
+
+def create_stats_bar(player_id):
+    data_df = pd.DataFrame()
+    player_fixtures = get_player_data(player_id)["history"]
+    last_10_matches = player_fixtures[-10:]
+    # create bar chart with number of goals
+    for i,match in enumerate(last_10_matches):
+        data_df = data_df.append({'Match': i, 'Points': match['total_points'],'Goals': match['goals_scored'],'Assists': match['assists']}, ignore_index=True)
+    st.bar_chart(data_df, x='Match', y=['Points'], height=200)
+    # st.bar_chart(x='Match', y='Goals')
+
+
+with col2:
+    players_id_dict = get_name_to_id_dict()
+    # players_df = get_player_data()
+    # players choose menu
+    st.title('Player form')
+    player_name = st.selectbox('Select Player:', options=sorted(players_id_dict.keys()), placeholder='Select Player', index=None, on_change=None)
+    player_id = players_id_dict[player_name]
+    create_stats_bar(player_id)
+
+            
    
