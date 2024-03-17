@@ -1,25 +1,18 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Sep 29 20:21:38 2022
-
-@author: timyouell
-"""
-
-
 import streamlit as st
 import pandas as pd
 from analytics.fpl_utils.fpl_api_collection import (
     get_league_table, get_current_gw, get_fixt_dfs, get_bootstrap_data
 )
+import json
+import os
+from annotated_text import annotated_text
+from SmartSquad import colors
 
 base_url = 'https://fantasy.premierleague.com/api/'
 
 st.set_page_config(page_title='PL Table', page_icon=':sports-medal:', layout='wide')
 
-st.title('Premier League Table')
-
-col1, col2 = st.columns(2)
+col1, col2 = st.columns([2,1])
 
 league_df = get_league_table()
 
@@ -44,6 +37,52 @@ league_df.index += 1
 league_df['GD'] = league_df['GD'].map('{:+}'.format)
 
 teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
+
+team1_stats = {
+        "home":{
+            "goals": [],
+            "yellow_cards": [],
+            "red_cards": [],
+            "assists": [],
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "season": []
+        }, 
+        "away":{
+            "goals": [],
+            "yellow_cards": [],
+            "red_cards": [],
+            "assists": [],
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "season": []
+        }
+    }
+
+team2_stats = {
+    "home":{
+        "goals": [],
+        "yellow_cards": [],
+        "red_cards": [],
+        "assists": [],
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "season": []
+    }, 
+    "away":{
+        "goals": [],
+        "yellow_cards": [],
+        "red_cards": [],
+        "assists": [],
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "season": []
+    }
+}
 
 ## Very slow to load, works but needs to be sped up.
 def get_home_away_str_dict():
@@ -110,9 +149,189 @@ for col in new_fixt_cols:
 # league_df['GW7'] = ' ' * 10 + league_df['GW7'] + ' ' * 10
 league_df.loc[league_df['Team'] == 'EVE', 'Team'] = 'EVE*'
 
+def match_team_to_season_id(team_name, teams_df):
+    for _,team in teams_df.iterrows():
+        if team['name'] == team_name:
+            return team['id']
+        
+def match_team_to_season_name(team_id, teams_df):
+    for _,team in teams_df.iterrows():
+        if team['id'] == team_id:
+            return team['name']
+        
+def build_all_seasons_df(team_1_name, team_2_name):
+    data_dir = os.path.join('Fantasy-Premier-League', 'data')
+    seasons = os.listdir(data_dir)[3:8]
+    all_seasons_df = pd.DataFrame()
+    for season in seasons:
+        data_path = os.path.join(data_dir, season, 'fixtures.csv')
+        teams_path = os.path.join(data_dir, season, 'teams.csv') 
+        df = pd.read_csv(data_path)
+        teams_df = pd.read_csv(teams_path)
+        team_1 = match_team_to_season_id(team_1_name, teams_df)
+        team_2 = match_team_to_season_id(team_2_name, teams_df)
+        
+        team_matches = df[((df['team_h'] == team_1) & (df['team_a'] == team_2)) | ((df['team_h'] == team_2) & (df['team_a'] == team_1))]
+        # filter out the matches that are not played yet
+        team_matches = team_matches[team_matches['finished'] == True]
+        # add a column with the season
+        team_matches['season'] = season
+        # add team names
+        team_matches['team_h_name'] = team_matches['team_h'].apply(lambda x: match_team_to_season_name(x, teams_df))
+        team_matches['team_a_name'] = team_matches['team_a'].apply(lambda x: match_team_to_season_name(x, teams_df))
 
-# with col1:
-st.dataframe(league_df.style.applymap(color_fixtures, subset=new_fixt_cols) \
-            .format(subset=float_cols, formatter='{:.2f}'), height=500, width=None)
+        all_seasons_df = pd.concat([all_seasons_df, team_matches])
+    return all_seasons_df
 
-st.text('*Everton received a 10 Point deduction on 17/11/2023 for breaching Financial Fair Play rules.')
+def extract_key_stats_updated(stats_str):
+        stats = json.loads(stats_str.replace("'", "\""))
+        extracted_stats = {
+            'home_goals': 0,  # Include goals scored by home and own goals by away
+            'away_goals': 0,  # Include goals scored by away and own goals by home
+            'home_yellow_cards': 0,
+            'away_yellow_cards': 0,
+            'home_red_cards': 0,
+            'away_red_cards': 0,
+            'home_assists': 0,
+            'away_assists': 0
+        }
+
+        for stat in stats:
+            if stat['identifier'] == 'goals_scored':
+                extracted_stats['home_goals'] += sum(item['value'] for item in stat['h'])
+                extracted_stats['away_goals'] += sum(item['value'] for item in stat['a'])
+            elif stat['identifier'] == 'own_goals':
+                # Add away team's own goals to home team's goals and vice versa
+                extracted_stats['home_goals'] += sum(item['value'] for item in stat['a'])
+                extracted_stats['away_goals'] += sum(item['value'] for item in stat['h'])
+            elif stat['identifier'] == 'yellow_cards':
+                extracted_stats['home_yellow_cards'] = sum(item['value'] for item in stat['h'])
+                extracted_stats['away_yellow_cards'] = sum(item['value'] for item in stat['a'])
+            elif stat['identifier'] == 'red_cards':
+                extracted_stats['home_red_cards'] = sum(item['value'] for item in stat['h'])
+                extracted_stats['away_red_cards'] = sum(item['value'] for item in stat['a'])
+            elif stat['identifier'] == 'assists':
+                extracted_stats['home_assists'] = sum(item['value'] for item in stat['h'])
+                extracted_stats['away_assists'] = sum(item['value'] for item in stat['a'])
+
+        return extracted_stats
+
+def create_head_to_head_stats(team1, team2):
+        if team1 != team2:
+            if not df.empty:
+                for _, row in df.iterrows():
+                    match_stats = extract_key_stats_updated(row['stats'])
+                    if row['team_h_name'] == team1:
+                        team1_stats['home']['goals'].append(match_stats['home_goals'])
+                        team1_stats['home']['yellow_cards'].append(match_stats['home_yellow_cards'])
+                        team1_stats['home']['red_cards'].append(match_stats['home_red_cards'])
+                        team1_stats['home']['season'].append(row['season'])
+                        team1_stats['home']['assists'].append(match_stats['home_assists'])
+                        team2_stats['away']['goals'].append(match_stats['away_goals'])
+                        team2_stats['away']['yellow_cards'].append(match_stats['away_yellow_cards'])
+                        team2_stats['away']['red_cards'].append(match_stats['away_red_cards'])
+                        team2_stats['away']['season'].append(row['season'])
+                        team2_stats['away']['assists'].append(match_stats['away_assists'])
+
+                        if row['team_h_score'] > row['team_a_score']:
+                            team1_stats['home']['wins'] += 1
+                            team2_stats['away']['losses'] += 1
+                        elif row['team_h_score'] < row['team_a_score']:
+                            team1_stats['home']['losses'] += 1
+                            team2_stats['away']['wins'] += 1
+                        else:
+                            team1_stats['home']['draws'] += 1
+                            team2_stats['away']['draws'] += 1
+                    else:
+                        team2_stats['home']['goals'].append(match_stats['home_goals'])
+                        team2_stats['home']['yellow_cards'].append(match_stats['home_yellow_cards'])
+                        team2_stats['home']['red_cards'].append(match_stats['home_red_cards'])
+                        team2_stats['home']['season'].append(row['season'])
+                        team2_stats['home']['assists'].append(match_stats['home_assists'])
+                        team1_stats['away']['goals'].append(match_stats['away_goals'])
+                        team1_stats['away']['yellow_cards'].append(match_stats['away_yellow_cards'])
+                        team1_stats['away']['red_cards'].append(match_stats['away_red_cards'])
+                        team1_stats['away']['season'].append(row['season'])
+                        team1_stats['away']['assists'].append(match_stats['away_assists'])
+
+                        if row['team_h_score'] > row['team_a_score']:
+                            team2_stats['home']['wins'] += 1
+                            team1_stats['away']['losses'] += 1
+                        elif row['team_h_score'] < row['team_a_score']:
+                            team2_stats['home']['losses'] += 1
+                            team1_stats['away']['wins'] += 1
+                        else:
+                            team2_stats['home']['draws'] += 1
+                            team1_stats['away']['draws'] += 1
+
+                # create one df with 3 cols: team1, stat, team2.
+                comparsion_df = pd.DataFrame(columns=['Team 1', 'Stat', 'Team 2'])
+                for stat in ['wins','draws', 'losses', 'goals','assists', 'yellow_cards', 'red_cards']:
+                    if stat in ['wins', 'draws', 'losses']:
+                        team_1_total = team1_stats['home'][stat] + team1_stats['away'][stat]
+                        team_2_total = team2_stats['home'][stat] + team2_stats['away'][stat]
+                    else:
+                        team_1_total = sum(team1_stats['home'][stat]) + sum(team1_stats['away'][stat])
+                        team_2_total = sum(team2_stats['home'][stat]) + sum(team2_stats['away'][stat])
+
+                    comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [team_1_total], 'Stat': [stat], 'Team 2': [team_2_total]}))
+
+                # adding manual stats - won_at_home % and won_away %
+                
+                team_1_won_at_home = (team1_stats['home']['wins'] / (team1_stats['home']['wins'] + team1_stats['home']['draws'] + team1_stats['home']['losses'])) * 100
+                team_2_won_at_home = (team2_stats['home']['wins'] / (team2_stats['home']['wins'] + team2_stats['home']['draws'] + team2_stats['home']['losses'])) * 100
+                team_1_won_away = (team1_stats['away']['wins'] / (team1_stats['away']['wins'] + team1_stats['away']['draws'] + team1_stats['away']['losses'])) * 100
+                team_2_won_away = (team2_stats['away']['wins'] / (team2_stats['away']['wins'] + team2_stats['away']['draws'] + team2_stats['away']['losses'])) * 100
+
+                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_at_home)], 'Stat': ['won_at_home %'], 'Team 2': [int(team_2_won_at_home)]}))
+                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_away)], 'Stat': ['won_away %'], 'Team 2': [int(team_2_won_away)]}))
+                
+                # make df tighter
+                comparsion_df = comparsion_df.reset_index(drop=True)
+                comparsion_df = comparsion_df.T.reset_index(drop=True).T
+                comparsion_df.columns = ['Team 1', 'Stat', 'Team 2']
+                comparsion_df['Stat'] = comparsion_df['Stat'].apply(lambda x: x.replace('_', ' ').title())
+
+                with inner_col2:
+                    s1 = dict(selector='th', props=[('text-align', 'center')])
+                    s2 = dict(selector='td', props=[('text-align', 'center')])
+                    # you can include more styling paramteres, check the pandas docs
+                    table = comparsion_df.style.set_table_styles([s1,s2]).hide(axis=0).to_html()
+                    annotated_text(
+                        (team1, "", colors[team1]), " vs ", (team2, "", colors[team2]), " 2019-2023"
+                    )
+                    st.write(f'{table}', unsafe_allow_html=True)
+
+            else:
+                st.write("No head-to-head matches found between the selected teams.")
+        else:
+            st.warning("Please select two different teams.")
+
+with col1:
+    # Premier League Table
+    st.title('Premier League Table')
+    styled_df = league_df.style.applymap(color_fixtures, subset=new_fixt_cols) \
+                               .format(subset=float_cols, formatter='{:.2f}')
+                               
+    st.dataframe(styled_df, height=210, width=None)
+    st.text('*Everton received a 10 Point deduction on 17/11/2023 for breaching Financial Fair Play rules.')
+
+    # Head-to-Head Stats
+    st.title('Head-to-Head Stats')
+
+    inner_col1, inner_col2 = st.columns([1.8, 2])
+    # Load the enhanced dataset
+    data_path = 'Fantasy-Premier-League/data/2021-22/fixtures.csv'
+    curr_season_df = pd.read_csv(data_path)
+
+    # Function to get the team's name mapping (you would replace this with actual team names if available)
+    team_names = teams_df["name"].to_list()
+    
+    with inner_col1:
+        team1 = st.selectbox('Choose Team 1:', options=sorted(team_names), placeholder='Select Team 1', index=None, on_change=None)
+        team2 = st.selectbox('Choose Team 2:', options=sorted(team_names), placeholder='Select Team 2', index=None, on_change=None)
+        if st.button('Show Head-to-Head Stats'):
+            df = build_all_seasons_df(team1, team2)
+            df.to_csv('head_to_head.csv')
+            create_head_to_head_stats(team1, team2)
+   
