@@ -1,16 +1,19 @@
 import streamlit as st
 import pandas as pd
 from analytics.fpl_utils.fpl_api_collection import (
-    get_league_table, get_current_gw, get_fixt_dfs, get_bootstrap_data, get_player_data, get_player_id_dict, get_name_to_id_dict
+    get_league_table, get_current_gw, get_fixt_dfs, get_bootstrap_data, get_player_data, get_player_id_dict, get_name_to_dicts
 )
 import json
 import os
-from annotated_text import annotated_text
+import warnings
 from SmartSquad import colors
+import altair as alt
+
+st.set_page_config(page_title='Stats', page_icon=':bar_chart:', layout='wide', initial_sidebar_state='collapsed')
+
+warnings.filterwarnings("ignore")
 
 base_url = 'https://fantasy.premierleague.com/api/'
-
-st.set_page_config(page_title='PL Table', page_icon=':sports-medal:', layout='wide')
 
 if "selected_stats" not in st.session_state:
     st.session_state.selected_stats = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
@@ -88,7 +91,7 @@ team2_stats = {
     }
 }
 
-## Very slow to load, works but needs to be sped up.
+
 def get_home_away_str_dict():
     new_fdr_df.columns = new_fixt_cols
     result_dict = {}
@@ -360,31 +363,57 @@ with col1:
     with inner_col1:
         team1 = st.selectbox('Choose Team 1:', options=sorted(team_names), placeholder='Select Team 1', index=None, on_change=None)
         team2 = st.selectbox('Choose Team 2:', options=sorted(team_names), placeholder='Select Team 2', index=None, on_change=None)
-        df = build_all_seasons_df(team1, team2)
-        # Here we define the stats options for the multiselect widget.
-        stats_options = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
-        st.session_state["selected_stats"] = st.multiselect('Select stats to show:', stats_options, default=stats_options, on_change=None)
-        create_head_to_head_stats(team1, team2, df)
+        if team1 != team2 and team1 != None and team2 != None:
+            df = build_all_seasons_df(team1, team2)
+            # Here we define the stats options for the multiselect widget.
+            stats_options = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
+            st.session_state["selected_stats"] = st.multiselect('Select stats to show:', stats_options, default=stats_options, on_change=None)
+            create_head_to_head_stats(team1, team2, df)
 
-def create_stats_bar(player_id):
+def create_stats_bar(player_id, player_team, stat_to_show):
+    stat_to_show = stat_to_show.lower().replace(" ", "_")
     data_df = pd.DataFrame()
     player_fixtures = get_player_data(player_id)["history"]
     last_10_matches = player_fixtures[-10:]
     # create bar chart with number of goals
-    for i,match in enumerate(last_10_matches):
-        data_df = data_df.append({'Match': i, 'Points': match['total_points'],'Goals': match['goals_scored'],'Assists': match['assists']}, ignore_index=True)
-    st.bar_chart(data_df, x='Match', y=['Points'], height=200)
-    # st.bar_chart(x='Match', y='Goals')
+    for match in last_10_matches:
+        match["opponent_team"] = match_team_to_season_name(match["opponent_team"], teams_df)
+        data_df = data_df.append(match, ignore_index=True)
+
+    data_df = data_df.sort_values(by="kickoff_time", ascending=False).reset_index(drop=True)
+    # make all columns numeric
+    data_df[stat_to_show] = pd.to_numeric(data_df[stat_to_show], errors='coerce')
+    # show bar char by the df order
+    st.write(
+        alt.Chart(data_df).mark_bar().encode(
+            x=alt.X('opponent_team', sort=None),
+            y=alt.Y(stat_to_show),  # Define domain to prevent inversion and remove gaps
+            color = alt.value(colors[player_team])
+        ).properties(
+            title=f'{stat_to_show.replace("_", " ").title()} in last 10 matches',
+            width=400,
+            height=400
+        ).configure_title(
+            anchor='middle'
+        )
+    )
 
 
 with col2:
-    players_id_dict = get_name_to_id_dict()
-    # players_df = get_player_data()
-    # players choose menu
+    players_id_dict, players_teams_dict = get_name_to_dicts()
+    players_stats = list(get_player_data(308)['history'][0].keys())
+    players_stats = [x.replace("_", " ").title() for x in players_stats if x not in ["element", "fixture", "opponent_team", "kickoff_time","was_home", "team_h_score"
+                                                                          ,"team_a_score", "round"]]
     st.title('Player form')
-    player_name = st.selectbox('Select Player:', options=sorted(players_id_dict.keys()), placeholder='Select Player', index=None, on_change=None)
-    player_id = players_id_dict[player_name]
-    create_stats_bar(player_id)
+    col1_inner, col2_inner = st.columns([1,1])
+    with col1_inner:
+        player_name = st.selectbox('Select Player:', options=sorted(players_id_dict.keys()), placeholder='Select Player', index=None, on_change=None)
+    with col2_inner:
+        stat_to_show = st.selectbox('Select Stat:', options=players_stats, placeholder='Select Stat', index=None, on_change=None)
+    if player_name and stat_to_show:
+        player_id = players_id_dict[player_name]
+        player_team = players_teams_dict[player_name]
+        create_stats_bar(player_id, player_team, stat_to_show)
 
             
    
