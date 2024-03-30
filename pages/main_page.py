@@ -213,15 +213,12 @@ selected_stats = [
     layer
     for layer_name, layer in {
         "Expected score": "Expected score",
-        "Next Game": "Next Game",
-        "Price": "Price",
-        "% owned": "% owned",
+        "Next Game": "Next Game"
     }.items()
     if st.sidebar.checkbox(layer_name, False)
 ]
 st.sidebar.markdown("The stats will be displayed below the player's name on the pitch as shown below:")
 st.sidebar.markdown("Expected score | Next Game")
-st.sidebar.markdown("Price | % owned")
 
 def draw_pitch_with_players(starting_11, subs, colors, selected_stats, player_stats):
     fig, ax = plt.subplots(figsize=(7, 14))
@@ -327,8 +324,6 @@ player_stats = {
     player[1]: {
         "Expected score": players_points_df.loc[player[1], "GW" + str(st.session_state.selected_gameweek)],
         "Next Game": team_fixt_df.iloc[start_11_teams_ids[starting_11.index(player)]-1, st.session_state.selected_gameweek-1 if st.session_state.selected_gameweek < 37 else 37],
-        "Price": 5.0,  
-        "% owned": "10%" 
     }
     for player in starting_11
 }
@@ -338,8 +333,6 @@ subs_stats = {
     player[1]: {
         "Expected score": players_points_df.loc[player[1], "GW" + str(st.session_state.selected_gameweek)],
         "Next Game": team_fixt_df.iloc[subs_teams_ids[subs.index(player)]-1, st.session_state.selected_gameweek-1 if st.session_state.selected_gameweek < 37 else 37],
-        "Price": 5.0,  # Dummy value
-        "% owned": 10,  # Dummy value
     }
     for player in subs
 }
@@ -532,7 +525,7 @@ def create_head_to_head_stats_for_inference(team1, team2, df):
             "season": []
         }
     }
-    selected_stats = st.session_state["selected_stats"]
+    
     if team1 != team2 and team1 != None and team2 != None:
         if not df.empty:
             for _, row in df.iterrows():
@@ -583,15 +576,14 @@ def create_head_to_head_stats_for_inference(team1, team2, df):
             # create one df with 3 cols: team1, stat, team2.
             comparsion_df = pd.DataFrame(columns=['Team 1', 'Stat', 'Team 2'])
             for stat in ['wins','draws', 'losses', 'goals','assists', 'yellow_cards', 'red_cards']:
-                if stat.replace('_', ' ').title() in selected_stats:
-                    if stat in ['wins', 'draws', 'losses']:
-                        team_1_total = team1_stats['home'][stat] + team1_stats['away'][stat]
-                        team_2_total = team2_stats['home'][stat] + team2_stats['away'][stat]
-                    else:
-                        team_1_total = sum(team1_stats['home'][stat]) + sum(team1_stats['away'][stat])
-                        team_2_total = sum(team2_stats['home'][stat]) + sum(team2_stats['away'][stat])
+                if stat in ['wins', 'draws', 'losses']:
+                    team_1_total = team1_stats['home'][stat] + team1_stats['away'][stat]
+                    team_2_total = team2_stats['home'][stat] + team2_stats['away'][stat]
+                else:
+                    team_1_total = sum(team1_stats['home'][stat]) + sum(team1_stats['away'][stat])
+                    team_2_total = sum(team2_stats['home'][stat]) + sum(team2_stats['away'][stat])
 
-                    comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [team_1_total], 'Stat': [stat], 'Team 2': [team_2_total]}))
+                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [team_1_total], 'Stat': [stat], 'Team 2': [team_2_total]}))
 
             # adding manual stats - won_at_home % and won_away %
             if team1_stats['home']['wins'] + team1_stats['home']['draws'] + team1_stats['home']['losses'] > 0 and team2_stats['home']['wins'] + team2_stats['home']['draws'] + team2_stats['home']['losses'] > 0:
@@ -605,10 +597,9 @@ def create_head_to_head_stats_for_inference(team1, team2, df):
                 team_1_won_away = 0
                 team_2_won_away = 0
 
-            if 'Won At Home %' in selected_stats:
-                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_at_home)], 'Stat': ['won_at_home %'], 'Team 2': [int(team_2_won_at_home)]}))
-            if 'Won Away %' in selected_stats:
-                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_away)], 'Stat': ['won_away %'], 'Team 2': [int(team_2_won_away)]}))
+            
+            comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_at_home)], 'Stat': ['won_at_home %'], 'Team 2': [int(team_2_won_at_home)]}))
+            comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_away)], 'Stat': ['won_away %'], 'Team 2': [int(team_2_won_away)]}))
             
             # make df tighter
             comparsion_df = comparsion_df.reset_index(drop=True)

@@ -82,51 +82,6 @@ def get_manager_team_data(manager_id, gw):
 def get_total_fpl_players():
     return get_bootstrap_data()['total_players']
 
-'''
-ele_stats_data = get_bootstrap_data()['element_stats']
-ele_types_data = get_bootstrap_data()['element_types']
-ele_data = get_bootstrap_data()['elements']
-events_data = get_bootstrap_data()['events']
-game_settings_data = get_bootstrap_data()['game_settings']
-phases_data = get_bootstrap_data()['phases']
-teams_data = get_bootstrap_data()['teams']
-total_managers = get_bootstrap_data()['total_players']
-
-
-fixt = pd.DataFrame(get_fixture_data())
-
-tester = get_manager_history_data(657832)
-
-tester = get_manager_details(657832)
-
-ele_df = pd.DataFrame(ele_data)
-
-events_df = pd.DataFrame(events_data)
-
-#keep only required cols
-
-
-ele_cols = ['web_name', 'chance_of_playing_this_round', 'element_type',
-            'event_points', 'form', 'now_cost', 'points_per_game',
-            'selected_by_percent', 'team', 'total_points',
-            'transfers_in_event', 'transfers_out_event', 'value_form',
-            'value_season', 'minutes', 'goals_scored', 'assists',
-            'clean_sheets', 'goals_conceded', 'own_goals', 'penalties_saved',
-            'penalties_missed', 'yellow_cards', 'red_cards', 'saves', 'bonus',
-            'bps', 'influence', 'creativity', 'threat', 'ict_index',
-            'influence_rank', 'influence_rank_type', 'creativity_rank',
-            'creativity_rank_type', 'threat_rank', 'threat_rank_type',
-            'ict_index_rank', 'ict_index_rank_type', 'dreamteam_count']
-
-ele_df = ele_df[ele_cols]
-
-picks_df = get_manager_team_data(9, 4)
-'''
-
-# need to do an original data pull to get historic gw_data for every player_id
-# shouldn't matter if new player_id's are added via tranfsers etc because it
-# should just get added to the big dataset
-
 def remove_moved_players(df):
     strings = ['loan', 'Loan', 'Contract cancelled', 'Left the club',
                'Permanent', 'Released', 'Signed for', 'Transferred',

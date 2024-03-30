@@ -4,15 +4,41 @@ from data_collection.fpl_api_collection import (get_league_table, get_current_gw
 import json
 import os
 import warnings
-from SmartSquad import colors
 import altair as alt
 from streamlit_extras.row import row
-from openai import OpenAI
 import streamlit as st
+import google.generativeai as genai
+
+gemini_model = genai.GenerativeModel('gemini-pro')
+genai.configure(api_key="AIzaSyA2UCE2Vk2vsG9UxzWJuNnxfnVHActKmzI")
 
 warnings.filterwarnings("ignore")
 
 base_url = 'https://fantasy.premierleague.com/api/'
+
+colors = {
+    "Arsenal": "#EF0107",
+    "Aston Villa": "#95BFE5",
+    "Bournemouth": "#DA291C",
+    "Brentford": "#FFDB00",
+    "Brighton": "#0057B8",
+    "Burnley": "#6C1D45",
+    "Chelsea": "#034694",
+    "Crystal Palace": "#1B458F",
+    "Everton": "#003399",
+    "Fulham": "#000000",
+    "Leicester": "#003090",
+    "Liverpool": "#C8102E",
+    "Luton": "#FF5000",
+    "Man City": "#6CABDD",
+    "Man Utd": "#DA291C",
+    "Newcastle": "#241F20",
+    "Nott'm Forest": "#FFCC00",
+    "Sheffield Utd": "#EE2737",
+    "Spurs": "#102257",
+    "West Ham": "#7A263A",
+    "Wolves": "#FDB913",
+}
 
 if "selected_stats" not in st.session_state:
     st.session_state.selected_stats = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
@@ -338,7 +364,7 @@ def create_head_to_head_stats(team1, team2, df):
             st.warning("Please select two different teams.")
 
 # Premier League Table - title in the center of the page
-st.title('Premier League Table :soccer:')
+st.title('Premier League Table :trophy:')
 st.write('Current Gameweek: ', str(ct_gw))
 
 styled_df = league_df.style.applymap(color_fixtures, subset=new_fixt_cols) \
@@ -347,11 +373,13 @@ styled_df = league_df.style.applymap(color_fixtures, subset=new_fixt_cols) \
 st.dataframe(styled_df, height=210, use_container_width=True)
 st.text('*Everton received a 10 Point deduction on 17/11/2023 for breaching Financial Fair Play rules.')
 
+st.markdown("---")
+
 col1, col2 = st.columns([1.4,1], gap="Large")
 
 with col1:
     # Head-to-Head Stats
-    st.title('Teams Head-to-Head :trophy:')
+    st.title('Teams Head-to-Head :vs:')
     empty_row = row(1)
     inner_col1, inner_col2 = st.columns([1.8, 2])
 
@@ -378,7 +406,7 @@ with col1:
             match["opponent_team"] = match_team_to_season_name(match["opponent_team"], teams_df)
             data_df = data_df.append(match, ignore_index=True)
 
-        data_df = data_df.sort_values(by="kickoff_time", ascending=False).reset_index(drop=True)
+        data_df = data_df.sort_values(by="kickoff_time", ascending=True).reset_index(drop=True)
         # make all columns numeric
         data_df[stat_to_show] = pd.to_numeric(data_df[stat_to_show], errors='coerce')
         # show bar char by the df order
@@ -389,27 +417,57 @@ with col1:
                 color = alt.value(colors[player_team])
             ).properties(
                 title=f'{stat_to_show.replace("_", " ").title()} in last 10 matches',
-                width=400,
-                height=350,
+                width=650,
+                height=450,
             ).configure_title(
                 anchor='middle'
             )
         )
 
 
-    with col2:
-        st.title('Player Form :zap:')
-        row1 = row(0, gap="small")
-        players_id_dict, players_teams_dict = get_name_to_dicts()
-        players_stats = list(get_player_data(308)['history'][0].keys())
-        players_stats = [x.replace("_", " ").title() for x in players_stats if x not in ["element", "fixture", "opponent_team", "kickoff_time","was_home", "team_h_score"
-                                                                            ,"team_a_score", "round"]]
-        row1.col1, row1.col2 = st.columns([1, 1])
-        with row1.col1:
-            player_name = st.selectbox('Select Player:', options=sorted(players_id_dict.keys()), placeholder='Select Player', index=None, on_change=None, key="player_name")
-        with row1.col2:
-            stat_to_show = st.selectbox('Select Stat:', options=players_stats, placeholder='Select Stat', index=None, on_change=None, key="stat_to_show")
-        if player_name and stat_to_show:
-            player_id = players_id_dict[player_name]
-            player_team = players_teams_dict[player_name]
-            create_stats_bar(player_id, player_team, stat_to_show)
+with col2:
+    st.title('Player Form :zap:')
+    row1 = row(0, gap="small")
+    players_id_dict, players_teams_dict = get_name_to_dicts()
+    players_stats = list(get_player_data(308)['history'][0].keys())
+    players_stats = [x.replace("_", " ").title() for x in players_stats if x not in ["element", "fixture", "opponent_team", "kickoff_time","was_home", "team_h_score","team_a_score", "round"]]
+    row1.col1, row1.col2 = st.columns([1, 1])
+    with row1.col1:
+        player_name = st.selectbox('Select Player:', options=sorted(players_id_dict.keys()), placeholder='Select Player', index=None, on_change=None, key="player_name")
+    with row1.col2:
+        stat_to_show = st.selectbox('Select Stat:', options=players_stats, placeholder='Select Stat', index=None, on_change=None, key="stat_to_show")
+    if player_name and stat_to_show:
+        player_id = players_id_dict[player_name]
+        player_team = players_teams_dict[player_name]
+        create_stats_bar(player_id, player_team, stat_to_show)
+
+st.markdown('---')
+
+col3, col4 = st.columns(2)
+with col3:
+    # use gemini model to show a picked by user team's form
+    st.title('Team Form :chart_with_upwards_trend:')
+    st.write('Pick a team you want to know its form in the last 5 matches.')
+    team_name = st.selectbox('Select Team:', options=sorted(team_names), placeholder='Select Team', index=None, on_change=None, key="team_name")
+
+with col4:
+    if team_name:
+        all_fixtures = pd.read_csv('Fantasy-Premier-Leaguue/data/2023-24/fixtures.csv')
+        team_id = match_team_to_season_id(team_name, teams_df)
+        team_fixtures = all_fixtures[(all_fixtures['team_h'] == team_id) | (all_fixtures['team_a'] == team_id)]
+        # filter out fixtures that are not played yet
+        team_fixtures = team_fixtures[team_fixtures['finished'] == True][['team_h', 'team_a', 'team_h_score', 'team_a_score']]
+        # convert to team names
+        team_fixtures['team_h'] = team_fixtures['team_h'].apply(lambda x: match_team_to_season_name(x, teams_df))
+        team_fixtures['team_a'] = team_fixtures['team_a'].apply(lambda x: match_team_to_season_name(x, teams_df))
+        # take last 5 fixtures
+        team_fixtures = team_fixtures.tail(5) # last 5 fixturessa
+        team_fixtures_str = team_fixtures.to_string(index=False)
+
+        text_prompt = f"analyze the form of {team_name} in the last 5 matches: {team_fixtures_str} and summarize it in a passage."
+        response = gemini_model.generate_content(text_prompt)
+        text = response.text.replace('•', '*')
+        st.title(" ")
+        st.markdown(f":robot_face:: {text}")
+
+        
