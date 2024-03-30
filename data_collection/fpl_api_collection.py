@@ -301,7 +301,7 @@ def get_fixt_dfs():
     league_df = get_league_table().reset_index()
     fixt_df['team_h'] = fixt_df['team_h'].map(teams_df.set_index('id')['short_name'])
     fixt_df['team_a'] = fixt_df['team_a'].map(teams_df.set_index('id')['short_name'])
-    
+    fixt_df[['team_h', 'team_a', 'team_h_difficulty', 'team_a_difficulty']].to_csv('fixtures.csv')
     gw_dict = dict(zip(range(1,381),
                        [num for num in range(1, 39) for x in range(10)]))
     fixt_df['event_lock'] = fixt_df['id'].map(gw_dict)

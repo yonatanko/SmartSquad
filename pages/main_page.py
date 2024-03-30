@@ -5,9 +5,14 @@ from mplsoccer import Pitch, VerticalPitch
 import matplotlib.pyplot as plt
 from streamlit_extras.row import row
 import time
-from SmartSquad import colors
 import pandas as pd
-from analytics.fpl_utils.fpl_api_collection import get_fixt_dfs, get_bootstrap_data, get_name_and_pos_and_team_dict
+from data_collection.fpl_api_collection import get_fixt_dfs, get_bootstrap_data, get_name_and_pos_and_team_dict
+import google.generativeai as genai
+import os
+import json
+
+gemini_model = genai.GenerativeModel('gemini-pro')
+genai.configure(api_key="AIzaSyA2UCE2Vk2vsG9UxzWJuNnxfnVHActKmzI")
 
 margins_css = """
     <style>
@@ -25,6 +30,95 @@ st.markdown(margins_css, unsafe_allow_html=True)
 
 st.write(":point_left: You can open the sidebar to navigate to other pages and to select the statistics to display on the pitch")
 
+colors = {
+    "Arsenal": "#EF0107",
+    "Aston Villa": "#95BFE5",
+    "Bournemouth": "#DA291C",
+    "Brentford": "#FFDB00",
+    "Brighton": "#0057B8",
+    "Burnley": "#6C1D45",
+    "Chelsea": "#034694",
+    "Crystal Palace": "#1B458F",
+    "Everton": "#003399",
+    "Fulham": "#000000",
+    "Leicester": "#003090",
+    "Liverpool": "#C8102E",
+    "Luton": "#FF5000",
+    "Man City": "#6CABDD",
+    "Man Utd": "#DA291C",
+    "Newcastle": "#241F20",
+    "Nott'm Forest": "#FFCC00",
+    "Sheffield Utd": "#EE2737",
+    "Spurs": "#102257",
+    "West Ham": "#7A263A",
+    "Wolves": "#FDB913",
+}
+
+def extract_key_stats_updated(stats_str):
+    stats = json.loads(stats_str.replace("'", "\""))
+    extracted_stats = {
+        'home_goals': 0,  
+        'away_goals': 0,
+        'home_yellow_cards': 0,
+        'away_yellow_cards': 0,
+        'home_red_cards': 0,
+        'away_red_cards': 0,
+        'home_assists': 0,
+        'away_assists': 0
+    }
+
+    for stat in stats:
+        if stat['identifier'] == 'goals_scored':
+            extracted_stats['home_goals'] += sum(item['value'] for item in stat['h'])
+            extracted_stats['away_goals'] += sum(item['value'] for item in stat['a'])
+        elif stat['identifier'] == 'own_goals':
+            extracted_stats['home_goals'] += sum(item['value'] for item in stat['a'])
+            extracted_stats['away_goals'] += sum(item['value'] for item in stat['h'])
+        elif stat['identifier'] == 'yellow_cards':
+            extracted_stats['home_yellow_cards'] = sum(item['value'] for item in stat['h'])
+            extracted_stats['away_yellow_cards'] = sum(item['value'] for item in stat['a'])
+        elif stat['identifier'] == 'red_cards':
+            extracted_stats['home_red_cards'] = sum(item['value'] for item in stat['h'])
+            extracted_stats['away_red_cards'] = sum(item['value'] for item in stat['a'])
+        elif stat['identifier'] == 'assists':
+            extracted_stats['home_assists'] = sum(item['value'] for item in stat['h'])
+            extracted_stats['away_assists'] = sum(item['value'] for item in stat['a'])
+
+    return extracted_stats
+
+def match_team_to_season_id(team_name, teams_df):
+    for _,team in teams_df.iterrows():
+        if team['name'] == team_name:
+            return team['id']
+        
+def match_team_to_season_name(team_id, teams_df):
+    for _,team in teams_df.iterrows():
+        if team['id'] == team_id:
+            return team['name']
+
+def build_all_seasons_df(team_1_name, team_2_name):
+    data_dir = os.path.join('Fantasy-Premier-Leaguue', 'data')
+    seasons = os.listdir(data_dir)[3:8]
+    all_seasons_df = pd.DataFrame()
+    for season in seasons:
+        data_path = os.path.join(data_dir, season, 'fixtures.csv')
+        teams_path = os.path.join(data_dir, season, 'teams.csv') 
+        df = pd.read_csv(data_path)
+        teams_df = pd.read_csv(teams_path)
+        team_1 = match_team_to_season_id(team_1_name, teams_df)
+        team_2 = match_team_to_season_id(team_2_name, teams_df)
+        
+        team_matches = df[((df['team_h'] == team_1) & (df['team_a'] == team_2)) | ((df['team_h'] == team_2) & (df['team_a'] == team_1))]
+        # filter out the matches that are not played yet
+        team_matches = team_matches[team_matches['finished'] == True]
+        # add a column with the season
+        team_matches['season'] = season
+        # add team names
+        team_matches['team_h_name'] = team_matches['team_h'].apply(lambda x: match_team_to_season_name(x, teams_df))
+        team_matches['team_a_name'] = team_matches['team_a'].apply(lambda x: match_team_to_season_name(x, teams_df))
+
+        all_seasons_df = pd.concat([all_seasons_df, team_matches])
+    return all_seasons_df
 
 def color_fixtures(val):
     if val == 5:
@@ -39,9 +133,18 @@ def color_fixtures(val):
     elif val == 2:
         # light green
         return "#90EE90"
+    
+def color_to_name(color):
+    if color == "#FF0000":
+        return ("strong red", "Very Difficult")
+    elif color == "#FF6347":
+        return ("light red", "Difficult")
+    elif color == "#808080":
+        return ("grey", "Neutral")
+    elif color == "#90EE90":
+        return ("light green", "Easy")
     else:
-        # string green
-        return "#008000"
+        return ("string green", "Very Easy")
 
 if "show_container" not in st.session_state:
     st.session_state.show_container = True
@@ -55,6 +158,9 @@ if "show_transfer_recommendation" not in st.session_state:
 if len(st.session_state["players"]) != 15:
     st.warning("Please select 15 players in the Welcome page", icon="⚠️")
     st.stop()
+
+if "widget_id" not in st.session_state:
+    st.session_state.widget_id = (id for id in range(1, 100_00))
 
 
 def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=80):
@@ -113,6 +219,9 @@ selected_stats = [
     }.items()
     if st.sidebar.checkbox(layer_name, False)
 ]
+st.sidebar.markdown("The stats will be displayed below the player's name on the pitch as shown below:")
+st.sidebar.markdown("Expected score | Next Game")
+st.sidebar.markdown("Price | % owned")
 
 def draw_pitch_with_players(starting_11, subs, colors, selected_stats, player_stats):
     fig, ax = plt.subplots(figsize=(7, 14))
@@ -165,7 +274,7 @@ def draw_pitch_with_players(starting_11, subs, colors, selected_stats, player_st
     return fig
 
 teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
-teams_df.to_csv("teams.csv")
+team_names = teams_df["name"].to_list()
 
 def match_team_name_to_id(team_name):
     return teams_df[teams_df['name'] == team_name]['id'].values[0]
@@ -212,8 +321,6 @@ start_11_teams_ids = [match_team_name_to_id(player[2]) for player in starting_11
 subs_teams_ids = [match_team_name_to_id(player[2]) for player in subs]
 
 team_fdr_df, team_fixt_df, _, _ = get_fixt_dfs()
-team_fdr_df.to_csv("team_fdr.csv")
-print(f"gameweek: {st.session_state.selected_gameweek}")
 
 # Create a dictionary to store the stats for each player
 player_stats = {
@@ -248,6 +355,7 @@ with col4:
     if st.button(":back:"):
         st.session_state.show_container = True
         st.session_state.show_transfer_recommendation = False
+        st.rerun()
 
 
 def hide_container():
@@ -260,9 +368,7 @@ def show_recommendation():
     with col3:
         create_recommendation()
 
-def create_recommendation():
-    # create a selectbox to select the number of gameweeks to consider
-    num_gameweeks = st.selectbox("Select the number of gameweeks to consider", range(1, 38 - st.session_state.selected_gameweek + 1), index=None) # consider the remaining gameweeks
+def create_recommendation(num_gameweeks):
     if num_gameweeks:
         # create a df with the expected points for the next gameweeks for the not selected players
         not_selected_points_df = not_selected_players_points_df.iloc[:, st.session_state.selected_gameweek-1:st.session_state.selected_gameweek+num_gameweeks-1]
@@ -291,11 +397,9 @@ def create_recommendation():
             best_swap = max(potential_swaps, key=lambda x: x[2])
             selected_player = best_swap[0]
             selected_player_next_games_and_points = selected_points_df.loc[selected_player]
-            selected_player_next_games_and_points["Total"] = selected_player_next_games_and_points.sum(axis=0)
             selected_player_next_games_and_points = pd.DataFrame(selected_player_next_games_and_points).rename(columns={selected_player: "Points"})
             not_selected_player = best_swap[1]
             not_selected_player_next_games_and_points = not_selected_points_df.loc[not_selected_player]
-            not_selected_player_next_games_and_points["Total"] = not_selected_player_next_games_and_points.sum(axis=0)
             not_selected_player_next_games_and_points = pd.DataFrame(not_selected_player_next_games_and_points).rename(columns={not_selected_player: "Points"})
             # change gameweek to the opponnet team name
             selected_player_team = name_to_team_dict[selected_player]
@@ -311,7 +415,7 @@ def create_recommendation():
 
             with first_col:
                 # center aligned subheader
-                st.markdown(f'## {selected_player}')
+                st.markdown(f'## {selected_player} - {selected_player_team}')
                 # display the table with the Opponent team rows colored by the fixture difficulty
                 clubs = selected_player_next_games_and_points["Opponent"].to_list()[:-1]
                 gws = selected_player_next_games_and_points.index.to_list()[:-1]
@@ -329,7 +433,7 @@ def create_recommendation():
                     st.write("")
                 st.markdown("#### Subsitute with:")
             with fourth_col:
-                st.markdown(f'## {not_selected_player}')
+                st.markdown(f'## {not_selected_player} - {not_selected_player_team}')
                 # display the table with the Opponent team rows colored by the fixture difficulty
                 clubs = not_selected_player_next_games_and_points["Opponent"].to_list()[:-1]
                 gws = not_selected_player_next_games_and_points.index.to_list()[:-1]
@@ -351,7 +455,7 @@ with col1:
     inner_col1, inner_col2, inner_col3 = st.columns(3)
     # gameweek selection
     with inner_col1:
-        if st.button(":arrow_backward:"):
+        if st.button(":arrow_backward:", key="back_button"):
             if st.session_state.selected_gameweek > 1:
                 st.session_state.selected_gameweek -= 1
                 st.session_state.show_container = True
@@ -382,6 +486,136 @@ with col1:
     fig = draw_pitch_with_players(starting_11, subs, colors, selected_stats, player_stats)
     st.pyplot(fig)
 
+def create_head_to_head_stats_for_inference(team1, team2, df):
+    team1_stats = {
+        "home":{
+            "goals": [],
+            "yellow_cards": [],
+            "red_cards": [],
+            "assists": [],
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "season": []
+        }, 
+        "away":{
+            "goals": [],
+            "yellow_cards": [],
+            "red_cards": [],
+            "assists": [],
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "season": []
+        }
+    }
+
+    team2_stats = {
+        "home":{
+            "goals": [],
+            "yellow_cards": [],
+            "red_cards": [],
+            "assists": [],
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "season": []
+        }, 
+        "away":{
+            "goals": [],
+            "yellow_cards": [],
+            "red_cards": [],
+            "assists": [],
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "season": []
+        }
+    }
+    selected_stats = st.session_state["selected_stats"]
+    if team1 != team2 and team1 != None and team2 != None:
+        if not df.empty:
+            for _, row in df.iterrows():
+                match_stats = extract_key_stats_updated(row['stats'])
+                if row['team_h_name'] == team1:
+                    team1_stats['home']['goals'].append(match_stats['home_goals'])
+                    team1_stats['home']['yellow_cards'].append(match_stats['home_yellow_cards'])
+                    team1_stats['home']['red_cards'].append(match_stats['home_red_cards'])
+                    team1_stats['home']['season'].append(row['season'])
+                    team1_stats['home']['assists'].append(match_stats['home_assists'])
+                    team2_stats['away']['goals'].append(match_stats['away_goals'])
+                    team2_stats['away']['yellow_cards'].append(match_stats['away_yellow_cards'])
+                    team2_stats['away']['red_cards'].append(match_stats['away_red_cards'])
+                    team2_stats['away']['season'].append(row['season'])
+                    team2_stats['away']['assists'].append(match_stats['away_assists'])
+
+                    if row['team_h_score'] > row['team_a_score']:
+                        team1_stats['home']['wins'] += 1
+                        team2_stats['away']['losses'] += 1
+                    elif row['team_h_score'] < row['team_a_score']:
+                        team1_stats['home']['losses'] += 1
+                        team2_stats['away']['wins'] += 1
+                    else:
+                        team1_stats['home']['draws'] += 1
+                        team2_stats['away']['draws'] += 1
+                else:
+                    team2_stats['home']['goals'].append(match_stats['home_goals'])
+                    team2_stats['home']['yellow_cards'].append(match_stats['home_yellow_cards'])
+                    team2_stats['home']['red_cards'].append(match_stats['home_red_cards'])
+                    team2_stats['home']['season'].append(row['season'])
+                    team2_stats['home']['assists'].append(match_stats['home_assists'])
+                    team1_stats['away']['goals'].append(match_stats['away_goals'])
+                    team1_stats['away']['yellow_cards'].append(match_stats['away_yellow_cards'])
+                    team1_stats['away']['red_cards'].append(match_stats['away_red_cards'])
+                    team1_stats['away']['season'].append(row['season'])
+                    team1_stats['away']['assists'].append(match_stats['away_assists'])
+
+                    if row['team_h_score'] > row['team_a_score']:
+                        team2_stats['home']['wins'] += 1
+                        team1_stats['away']['losses'] += 1
+                    elif row['team_h_score'] < row['team_a_score']:
+                        team2_stats['home']['losses'] += 1
+                        team1_stats['away']['wins'] += 1
+                    else:
+                        team2_stats['home']['draws'] += 1
+                        team1_stats['away']['draws'] += 1
+
+            # create one df with 3 cols: team1, stat, team2.
+            comparsion_df = pd.DataFrame(columns=['Team 1', 'Stat', 'Team 2'])
+            for stat in ['wins','draws', 'losses', 'goals','assists', 'yellow_cards', 'red_cards']:
+                if stat.replace('_', ' ').title() in selected_stats:
+                    if stat in ['wins', 'draws', 'losses']:
+                        team_1_total = team1_stats['home'][stat] + team1_stats['away'][stat]
+                        team_2_total = team2_stats['home'][stat] + team2_stats['away'][stat]
+                    else:
+                        team_1_total = sum(team1_stats['home'][stat]) + sum(team1_stats['away'][stat])
+                        team_2_total = sum(team2_stats['home'][stat]) + sum(team2_stats['away'][stat])
+
+                    comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [team_1_total], 'Stat': [stat], 'Team 2': [team_2_total]}))
+
+            # adding manual stats - won_at_home % and won_away %
+            if team1_stats['home']['wins'] + team1_stats['home']['draws'] + team1_stats['home']['losses'] > 0 and team2_stats['home']['wins'] + team2_stats['home']['draws'] + team2_stats['home']['losses'] > 0:
+                team_1_won_at_home = (team1_stats['home']['wins'] / (team1_stats['home']['wins'] + team1_stats['home']['draws'] + team1_stats['home']['losses'])) * 100
+                team_2_won_at_home = (team2_stats['home']['wins'] / (team2_stats['home']['wins'] + team2_stats['home']['draws'] + team2_stats['home']['losses'])) * 100
+                team_1_won_away = (team1_stats['away']['wins'] / (team1_stats['away']['wins'] + team1_stats['away']['draws'] + team1_stats['away']['losses'])) * 100
+                team_2_won_away = (team2_stats['away']['wins'] / (team2_stats['away']['wins'] + team2_stats['away']['draws'] + team2_stats['away']['losses'])) * 100
+            else:
+                team_1_won_at_home = 0
+                team_2_won_at_home = 0
+                team_1_won_away = 0
+                team_2_won_away = 0
+
+            if 'Won At Home %' in selected_stats:
+                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_at_home)], 'Stat': ['won_at_home %'], 'Team 2': [int(team_2_won_at_home)]}))
+            if 'Won Away %' in selected_stats:
+                comparsion_df = comparsion_df.append(pd.DataFrame({'Team 1': [int(team_1_won_away)], 'Stat': ['won_away %'], 'Team 2': [int(team_2_won_away)]}))
+            
+            # make df tighter
+            comparsion_df = comparsion_df.reset_index(drop=True)
+            comparsion_df = comparsion_df.T.reset_index(drop=True).T
+            comparsion_df.columns = [team1, 'Stat', team2]
+            return comparsion_df
+
 with col3:
     if st.session_state.show_container:
         with st.container():
@@ -397,20 +631,23 @@ with col3:
             inside_col1, inside_col2 = st.columns(2)
 
             with inside_col1:
-                if st.button("Yes 👍", on_click=show_recommendation):
-                    # Perform action for Yes
-                    pass
+                if st.button("Yes 👍", key="yes"):
+                    st.session_state.show_container = False
+                    st.session_state.show_transfer_recommendation = True
+                    st.rerun()
 
             with inside_col2:
-                if st.button("No 👎", on_click=hide_container):
+                if st.button("No 👎", on_click=hide_container, key="No"):
                     # Perform action for No: make the content disappear\
                     pass
 
     if st.session_state.show_transfer_recommendation:
-        create_recommendation()
+        num_gameweeks = st.selectbox("Select the number of gameweeks to consider", range(1, 38 - st.session_state.selected_gameweek + 1), index=None)
+        create_recommendation(num_gameweeks)
 
     if "Next Game" in selected_stats or st.session_state.show_transfer_recommendation:
         # explain the user what the colors mean by shoiwng the color legend
+        st.markdown("---")
         st.markdown(f"### Fixture Difficulty Rating Color Legend")
 
         st.markdown(
@@ -448,12 +685,25 @@ with col3:
             """,
             unsafe_allow_html=True,
         )
+        st.markdown("---")
+        # Explain the H and A meaning
+        st.markdown(f"#### H: The Game is played at Home")
+        st.markdown(f"#### A: The Game is played Away (At the Opponent's Stadium)")
+        st.markdown("---")
+        # Explain colors using teams head-to-head stats and gemini inference
+        st.markdown(f'## Choose a matchup to get explanation of the color chosen')
+        team1 = st.selectbox('Choose Team 1:', options=sorted(team_names), placeholder='Select Team 1', index=None, on_change=None, key="team1")
+        team2 = st.selectbox('Choose Team 2:', options=sorted(team_names), placeholder='Select Team 2', index=None, on_change=None, key="team2")
+        if team1 != team2 and team1 != None and team2 != None:
+            matchups_df = build_all_seasons_df(team1, team2)
+            # Here we define the stats options for the multiselect widget.
+            stats_options = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
+            head_to_head_df = create_head_to_head_stats_for_inference(team1, team2, matchups_df)
+            # convert the df to json string
+            head_to_head_json = head_to_head_df.to_json(orient='records')
+            chosen_color, difficulty_rating = color_to_name(color_fixtures(team_fdr_df.iloc[match_team_name_to_id(team1)-1, st.session_state.selected_gameweek-1]))
+            text_prompt = f"{team1} will play against {team2} in the next gameweek. The fixture difficulty rating for this game is {difficulty_rating} which means it will be colored as {chosen_color}. explain why shortly based on their head-to-head stats: {head_to_head_json}"
+            response = gemini_model.generate_content(text_prompt)
+            text = response.text.replace('•', '*')
+            st.markdown(text)
 
-        st.markdown(
-            """
-            <div style="margin-right: 100px; text-align: center; background-color: #008000; color: black;">
-                <p style= "font-size": 20px >Very Easy</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )

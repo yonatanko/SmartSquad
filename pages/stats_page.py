@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from analytics.fpl_utils.fpl_api_collection import (get_league_table, get_current_gw, get_fixt_dfs, get_bootstrap_data, get_player_data, get_player_id_dict, get_name_to_dicts)
+from data_collection.fpl_api_collection import (get_league_table, get_current_gw, get_fixt_dfs, get_bootstrap_data, get_player_data, get_player_id_dict, get_name_to_dicts)
 import json
 import os
 import warnings
@@ -20,6 +20,7 @@ if "selected_stats" not in st.session_state:
 league_df = get_league_table()
 
 team_fdr_df, team_fixt_df, team_ga_df, team_gf_df = get_fixt_dfs()
+team_fixt_df.to_csv("team_fixt_df.csv")
 
 ct_gw = get_current_gw()
 
@@ -127,16 +128,16 @@ def color_fixtures(val):
     bg_color = 'background-color: '
     font_color = 'color: '
     if val in home_away_dict[1]:
-        bg_color += '#147d1b'
+        bg_color += '#008000' # green
     elif val in home_away_dict[2]:
-        bg_color += '#00ff78'
+        bg_color += '#90EE90' # light green
     elif val in home_away_dict[3]:
-        bg_color += '#eceae6'
+        bg_color += '#808080' # grey
     elif val in home_away_dict[4]:
-        bg_color += '#ff0057'
+        bg_color += '#FF6347' # red
         font_color += 'white'
     elif val in home_away_dict[5]:
-        bg_color += '#920947'
+        bg_color += '#FF0000' # dark red
         font_color += 'white'
     else:
         bg_color += ''
@@ -163,7 +164,7 @@ def match_team_to_season_name(team_id, teams_df):
             return team['name']
         
 def build_all_seasons_df(team_1_name, team_2_name):
-    data_dir = os.path.join('Fantasy-Premier-League', 'data')
+    data_dir = os.path.join('Fantasy-Premier-Leaguue', 'data')
     seasons = os.listdir(data_dir)[3:8]
     all_seasons_df = pd.DataFrame()
     for season in seasons:
@@ -336,12 +337,14 @@ def create_head_to_head_stats(team1, team2, df):
         else:
             st.warning("Please select two different teams.")
 
-# Premier League Table
-st.title('Premier League Table ⚽')
+# Premier League Table - title in the center of the page
+st.title('Premier League Table :soccer:')
+st.write('Current Gameweek: ', str(ct_gw))
+
 styled_df = league_df.style.applymap(color_fixtures, subset=new_fixt_cols) \
                             .format(subset=float_cols, formatter='{:.2f}')
                             
-st.dataframe(styled_df, height=210, width=None)
+st.dataframe(styled_df, height=210, use_container_width=True)
 st.text('*Everton received a 10 Point deduction on 17/11/2023 for breaching Financial Fair Play rules.')
 
 col1, col2 = st.columns([1.4,1], gap="Large")
@@ -351,16 +354,13 @@ with col1:
     st.title('Teams Head-to-Head :trophy:')
     empty_row = row(1)
     inner_col1, inner_col2 = st.columns([1.8, 2])
-    # Load the enhanced dataset
-    data_path = 'Fantasy-Premier-League/data/2021-22/fixtures.csv'
-    curr_season_df = pd.read_csv(data_path)
 
     # Function to get the team's name mapping (you would replace this with actual team names if available)
     team_names = teams_df["name"].to_list()
 
     with inner_col1:
-        team1 = st.selectbox('Choose Team 1:', options=sorted(team_names), placeholder='Select Team 1', index=None, on_change=None)
-        team2 = st.selectbox('Choose Team 2:', options=sorted(team_names), placeholder='Select Team 2', index=None, on_change=None)
+        team1 = st.selectbox('Choose Team 1:', options=sorted(team_names), placeholder='Select Team 1', index=None, on_change=None, key="stat_team1")
+        team2 = st.selectbox('Choose Team 2:', options=sorted(team_names), placeholder='Select Team 2', index=None, on_change=None, key="stat_team2")
         if team1 != team2 and team1 != None and team2 != None:
             df = build_all_seasons_df(team1, team2)
             # Here we define the stats options for the multiselect widget.
@@ -406,9 +406,9 @@ with col1:
                                                                             ,"team_a_score", "round"]]
         row1.col1, row1.col2 = st.columns([1, 1])
         with row1.col1:
-            player_name = st.selectbox('Select Player:', options=sorted(players_id_dict.keys()), placeholder='Select Player', index=None, on_change=None)
+            player_name = st.selectbox('Select Player:', options=sorted(players_id_dict.keys()), placeholder='Select Player', index=None, on_change=None, key="player_name")
         with row1.col2:
-            stat_to_show = st.selectbox('Select Stat:', options=players_stats, placeholder='Select Stat', index=None, on_change=None)
+            stat_to_show = st.selectbox('Select Stat:', options=players_stats, placeholder='Select Stat', index=None, on_change=None, key="stat_to_show")
         if player_name and stat_to_show:
             player_id = players_id_dict[player_name]
             player_team = players_teams_dict[player_name]

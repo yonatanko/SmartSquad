@@ -3,7 +3,7 @@ from streamlit_extras.switch_page_button import switch_page
 from st_pages import Page, show_pages, add_page_title
 import pandas as pd
 from annotated_text import annotated_text
-from analytics.fpl_utils.fpl_api_collection import get_name_and_pos_and_team_dict
+from data_collection.fpl_api_collection import get_name_and_pos_and_team_dict
 
 st.set_page_config(
     page_title="SmartSquad",
@@ -24,7 +24,6 @@ st.markdown(margins_css, unsafe_allow_html=True)
 
 # show_pages(
 #     [
-#         Page("SmartSquad.py", "Welcome", ":wave:"),
 #         Page("pages/main_page.py", "Main Page", ":house:"),
 #         Page("pages/stats_page.py", "Stats Page", ":chart_with_upwards_trend:"),
 #     ]
@@ -215,6 +214,6 @@ with col3:
                     icon="⚠️",
                 )
         # create link to main page that will reset the session state
-        if st.button("Done"):
-            switch_page("Main Page")
+        if st.button("Done", key="done_button"):
+            switch_page("main page")
 
