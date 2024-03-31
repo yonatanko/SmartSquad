@@ -6,6 +6,7 @@ from data_collection.fpl_api_collection import get_fixt_dfs, get_bootstrap_data,
 import google.generativeai as genai
 import os
 import json
+import numpy as np
 
 gemini_model = genai.GenerativeModel('gemini-pro')
 genai.configure(api_key="AIzaSyA2UCE2Vk2vsG9UxzWJuNnxfnVHActKmzI")
@@ -155,9 +156,6 @@ if len(st.session_state["players"]) != 15:
     st.warning("Please select 15 players in the Welcome page", icon="⚠️")
     st.stop()
 
-if "widget_id" not in st.session_state:
-    st.session_state.widget_id = (id for id in range(1, 100_00))
-
 
 def generate_position_mapping(num_defenders, num_midfielders, num_forwards, pitch_height=80):
     position_mapping = {
@@ -278,21 +276,17 @@ num_to_string_pos = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
 
 # generate dummy expected points for each player in each gameweek (there are 38 gameweeks in a season)
 # make a df with the player names (selected in smartSquad page) as the index and the columns as the gameweeks
-# expected_points_selected = np.random.randint(1, 10, size=(15, 38))
-# players_points_df = pd.DataFrame(expected_points_selected, columns=[f"GW{i}" for i in range(1, 39)])
-# players_points_df.index = [player[1] for player in players]
-# players_points_df.to_csv("expected_points_selected.csv")
-players_points_df = pd.read_csv("expected_points_selected.csv", index_col=0)
+expected_points_selected = np.random.randint(1, 10, size=(15, 38))
+players_points_df = pd.DataFrame(expected_points_selected, columns=[f"GW{i}" for i in range(1, 39)])
+players_points_df.index = [player[1] for player in players]
 
 name_to_pos_dict, name_to_team_dict = get_name_and_pos_and_team_dict()
 all_players = [(num_to_string_pos[name_to_pos_dict[player]], player, name_to_team_dict[player]) for player in name_to_pos_dict.keys()]
 not_selected_players = [player for player in all_players if player[1] not in players_points_df.index]
 
-# expected_points_not_selected = np.random.randint(1, 10, size=(len(not_selected_players), 38))
-# not_selected_players_points_df = pd.DataFrame(expected_points_not_selected, columns=[f"GW{i}" for i in range(1, 39)])
-# not_selected_players_points_df.index = [player[1] for player in not_selected_players]
-# not_selected_players_points_df.to_csv("expected_points_not_selected.csv")
-not_selected_players_points_df = pd.read_csv("expected_points_not_selected.csv", index_col=0)
+expected_points_not_selected = np.random.randint(1, 10, size=(len(not_selected_players), 38))
+not_selected_players_points_df = pd.DataFrame(expected_points_not_selected, columns=[f"GW{i}" for i in range(1, 39)])
+not_selected_players_points_df.index = [player[1] for player in not_selected_players]
 
 # calculate the best starting 11 based on players_points_df in a given gameweek and put the rest on the bench
 subs_names = []
