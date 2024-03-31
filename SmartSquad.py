@@ -1,7 +1,5 @@
 import streamlit as st
 from streamlit_extras.switch_page_button import switch_page
-from st_pages import Page, show_pages, add_page_title
-import pandas as pd
 from annotated_text import annotated_text
 from data_collection.fpl_api_collection import get_name_and_pos_and_team_dict
 

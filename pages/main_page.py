@@ -1,10 +1,6 @@
 import streamlit as st
-import time
-import numpy as np
-from mplsoccer import Pitch, VerticalPitch
+from mplsoccer import VerticalPitch
 import matplotlib.pyplot as plt
-from streamlit_extras.row import row
-import time
 import pandas as pd
 from data_collection.fpl_api_collection import get_fixt_dfs, get_bootstrap_data, get_name_and_pos_and_team_dict
 import google.generativeai as genai
