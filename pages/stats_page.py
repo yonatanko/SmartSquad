@@ -462,9 +462,19 @@ with col4:
         team_fixtures['team_a'] = team_fixtures['team_a'].apply(lambda x: match_team_to_season_name(x, teams_df))
         # take last 5 fixtures
         team_fixtures = team_fixtures.tail(5) # last 5 fixturessa
-        team_fixtures_str = team_fixtures.to_string(index=False)
-
-        text_prompt = f"analyze the form of {team_name} in the last 5 matches: {team_fixtures_str} and summarize it in a passage."
+        # transform to dict of: list of dicts: [{team_h: team_h_score, team_a: team_a_score}]
+        # team_fixtures_str = team_fixtures.to_string(index=False)
+        # transform to df with the following columns: opponent_team, was_home, won, lost, draw, goals
+        new_fixtures = team_fixtures.copy()
+        new_fixtures['won'] = new_fixtures.apply(lambda x: 1 if x['team_h'] == team_name and x['team_h_score'] > x['team_a_score'] or x['team_a'] == team_name and x['team_a_score'] > x['team_h_score'] else 0, axis=1)
+        new_fixtures['lost'] = new_fixtures.apply(lambda x: 1 if x['team_h'] == team_name and x['team_h_score'] < x['team_a_score'] or x['team_a'] == team_name and x['team_a_score'] < x['team_h_score'] else 0, axis=1)
+        new_fixtures['draw'] = new_fixtures.apply(lambda x: 1 if x['team_h_score'] == x['team_a_score'] else 0, axis=1)
+        new_fixtures['goals scored'] = new_fixtures.apply(lambda x: x['team_h_score'] if x['team_h'] == team_name else x['team_a_score'], axis=1)
+        new_fixtures['goals conceded'] = new_fixtures.apply(lambda x: x['team_a_score'] if x['team_h'] == team_name else x['team_h_score'], axis=1)
+        new_fixtures['opponent_team'] = new_fixtures.apply(lambda x: x['team_h'] if x['team_h'] != team_name else x['team_a'], axis=1)
+        new_fixtures = new_fixtures[['opponent_team', 'won', 'lost', 'draw', 'goals scored', 'goals conceded']]
+        team_fixtures_str = new_fixtures.to_string(index=False)
+        text_prompt = f"analyze the form of {team_name} in the last 5 matches based on this data only: {team_fixtures_str}. summarize it in a passage without headline"
         response = gemini_model.generate_content(text_prompt)
         text = response.text.replace('•', '*')
         st.title(" ")
