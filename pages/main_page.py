@@ -453,15 +453,8 @@ with col1:
         else:
             st.warning("You are already at the first gameweek", icon="⚠️")
     with inner_col3:
-        # rounded text area with white background and the selected gameweek
-        st.markdown(
-            f"""
-            <div style="margin-bottom: 20px; margin-top: 8px; margin-right: 20px; border-radius: 15px; text-align: center; background-color: white; color: black;">
-                <p style= "font-size": 20px >{"GW" + str(st.session_state.selected_gameweek)}</p>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
+        st.write(f"GW{st.session_state.selected_gameweek}")
+        
 
     if inner_col4.button(":arrow_forward:"):
         if st.session_state.selected_gameweek < 38:
