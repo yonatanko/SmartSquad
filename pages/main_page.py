@@ -96,6 +96,8 @@ def match_team_to_season_name(team_id, teams_df):
 def build_all_seasons_df(team_1_name, team_2_name):
     data_dir = os.path.join('Fantasy-Premier-Leaguue', 'data')
     seasons = os.listdir(data_dir)
+    # sort
+    seasons = sorted(seasons, key=lambda x: int(x.split('-')[0]))
     st.write(seasons)
     all_seasons_df = pd.DataFrame()
     for season in seasons:
