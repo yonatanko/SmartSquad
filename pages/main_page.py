@@ -441,7 +441,7 @@ def create_recommendation(num_gameweeks):
 # Draw the pitch in the first column, which will span across all rows on the left side.
 with col1:
     # gameweek selection
-    inner_col1, inner_col2, inner_col3, inner_col4 = st.columns(4)
+    inner_col1, inner_col2, inner_col3, inner_col4 = st.columns([1, 0.5, 1, 0.5])
     with inner_col1:
         st.write("Choose GameWeek:")
     if inner_col2.button(":arrow_backward:", key="back_button"):
@@ -455,7 +455,6 @@ with col1:
     with inner_col3:
         st.write(f"GW{st.session_state.selected_gameweek}")
         
-
     if inner_col4.button(":arrow_forward:"):
         if st.session_state.selected_gameweek < 38:
             st.session_state.selected_gameweek += 1
