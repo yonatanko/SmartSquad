@@ -161,7 +161,7 @@ with col1:
          You can use it to track your players' performance, compare them to other players, and make informed decisions about your team.""")
 
     selected_player = st.selectbox(
-        "Select player",
+        "Select The players of your Fantasy Team:",
         players,
         key="selected_player",
         disabled=st.session_state["disabled"],
