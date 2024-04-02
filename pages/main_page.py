@@ -456,7 +456,7 @@ with col1:
         # rounded text area with white background and the selected gameweek
         st.markdown(
             f"""
-            <div style="margin-bottom: 20px; margin-top: 8px; border-radius: 15px; text-align: center; background-color: white; color: black;">
+            <div style="margin-bottom: 20px; margin-top: 8px; margin-right: 40px; border-radius: 15px; text-align: center; background-color: white; color: black;">
                 <p style= "font-size": 20px >{"GW" + str(st.session_state.selected_gameweek)}</p>
             </div>
             """,
