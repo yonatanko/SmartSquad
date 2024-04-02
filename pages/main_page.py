@@ -440,18 +440,19 @@ def create_recommendation(num_gameweeks):
 
 # Draw the pitch in the first column, which will span across all rows on the left side.
 with col1:
-    inner_col1, inner_col2, inner_col3 = st.columns(3)
     # gameweek selection
+    inner_col1, inner_col2, inner_col3, inner_col4 = st.columns(4)
     with inner_col1:
-        if st.button(":arrow_backward:", key="back_button"):
-            if st.session_state.selected_gameweek > 1:
-                st.session_state.selected_gameweek -= 1
-                st.session_state.show_container = True
-                st.session_state.show_transfer_recommendation = False
-                st.rerun()
-            else:
-                st.warning("You are already at the first gameweek", icon="⚠️")
-    with inner_col2:
+        st.write("Choose GameWeek:")
+    if inner_col2.button(":arrow_backward:", key="back_button"):
+        if st.session_state.selected_gameweek > 1:
+            st.session_state.selected_gameweek -= 1
+            st.session_state.show_container = True
+            st.session_state.show_transfer_recommendation = False
+            st.rerun()
+        else:
+            st.warning("You are already at the first gameweek", icon="⚠️")
+    with inner_col3:
         # rounded text area with white background and the selected gameweek
         st.markdown(
             f"""
@@ -462,7 +463,7 @@ with col1:
             unsafe_allow_html=True,
         )
 
-    if inner_col3.button(":arrow_forward:"):
+    if inner_col4.button(":arrow_forward:"):
         if st.session_state.selected_gameweek < 38:
             st.session_state.selected_gameweek += 1
             st.session_state.show_container = True
@@ -471,6 +472,7 @@ with col1:
         else:
             st.warning("You are already at the last gameweek", icon="⚠️")
 
+    st.write(f":robot_face: We recommend you to start this 11 players for {str(st.session_state.selected_gameweek)}")
     fig = draw_pitch_with_players(starting_11, subs, colors, selected_stats, player_stats)
     st.pyplot(fig)
 
