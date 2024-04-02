@@ -274,20 +274,14 @@ def match_team_name_to_id(team_name):
 # extract player, position and club from the st.session_state['players'] list
 players = [player.split(",") for player in st.session_state["players"]]
 num_to_string_pos = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
-
-# generate dummy expected points for each player in each gameweek (there are 38 gameweeks in a season)
-# make a df with the player names (selected in smartSquad page) as the index and the columns as the gameweeks
-expected_points_selected = np.random.randint(1, 10, size=(15, 38))
-players_points_df = pd.DataFrame(expected_points_selected, columns=[f"GW{i}" for i in range(1, 39)])
-players_points_df.index = [player[1] for player in players]
-
 name_to_pos_dict, name_to_team_dict = get_name_and_pos_and_team_dict()
+
+# load the players_points_df and not_selected_players_points_df
+players_points_df = pd.read_csv("players_points.csv", index_col=0)
+not_selected_players_points_df = pd.read_csv("not_selected_players_points.csv", index_col=0)
+
 all_players = [(num_to_string_pos[name_to_pos_dict[player]], player, name_to_team_dict[player]) for player in name_to_pos_dict.keys()]
 not_selected_players = [player for player in all_players if player[1] not in players_points_df.index]
-
-expected_points_not_selected = np.random.randint(1, 10, size=(len(not_selected_players), 38))
-not_selected_players_points_df = pd.DataFrame(expected_points_not_selected, columns=[f"GW{i}" for i in range(1, 39)])
-not_selected_players_points_df.index = [player[1] for player in not_selected_players]
 
 # calculate the best starting 11 based on players_points_df in a given gameweek and put the rest on the bench
 subs_names = []
@@ -675,8 +669,8 @@ with col3:
         )
         st.markdown("---")
         # Explain the H and A meaning
-        st.markdown(f"#### H: The Game is played at Home")
-        st.markdown(f"#### A: The Game is played Away (At the Opponent's Stadium)")
+        st.markdown(f"##### H: The Game is played at Home")
+        st.markdown(f"##### A: The Game is played Away (At the Opponent's Stadium)")
         st.markdown("---")
         # Explain colors using teams head-to-head stats and gemini inference
         st.markdown(f'## Choose a matchup to get explanation of the color chosen')

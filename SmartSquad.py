@@ -2,6 +2,8 @@ import streamlit as st
 from streamlit_extras.switch_page_button import switch_page
 from annotated_text import annotated_text
 from data_collection.fpl_api_collection import get_name_and_pos_and_team_dict
+import numpy as np
+import pandas as pd
 
 st.set_page_config(
     page_title="SmartSquad",
@@ -206,5 +208,20 @@ with col3:
                 )
         # create link to main page that will reset the session state
         if st.button("Done", key="done_button"):
+            num_to_string_pos = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
+            players = [player.split(",") for player in st.session_state["players"]]
+            expected_points_selected = np.random.randint(1, 10, size=(15, 38))
+            players_points_df = pd.DataFrame(expected_points_selected, columns=[f"GW{i}" for i in range(1, 39)])
+            players_points_df.index = [player[1] for player in players]
+            players_points_df.to_csv("players_points.csv")
+
+            name_to_pos_dict, name_to_team_dict = get_name_and_pos_and_team_dict()
+            all_players = [(num_to_string_pos[name_to_pos_dict[player]], player, name_to_team_dict[player]) for player in name_to_pos_dict.keys()]
+            not_selected_players = [player for player in all_players if player[1] not in players_points_df.index]
+
+            expected_points_not_selected = np.random.randint(1, 10, size=(len(not_selected_players), 38))
+            not_selected_players_points_df = pd.DataFrame(expected_points_not_selected, columns=[f"GW{i}" for i in range(1, 39)])
+            not_selected_players_points_df.index = [player[1] for player in not_selected_players]
+            not_selected_players_points_df.to_csv("not_selected_players_points.csv")
             switch_page("main page")
 
