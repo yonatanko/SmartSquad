@@ -413,12 +413,12 @@ with col1:
         # show bar char by the df order
         st.write(
             alt.Chart(data_df).mark_bar().encode(
-                x=alt.X('opponent_team', sort=None),
+                x=alt.X('opponent_team', sort=None, title='Opponent Team'),
                 y=alt.Y(stat_to_show),  # Define domain to prevent inversion and remove gaps
                 color = alt.value(colors[player_team])
             ).properties(
                 title=f'{stat_to_show.replace("_", " ").title()} in last 10 matches',
-                width=350,
+                width=450,
                 height=450,
             ).configure_title(
                 anchor='middle'
