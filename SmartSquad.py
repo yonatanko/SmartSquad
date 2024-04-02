@@ -165,7 +165,7 @@ with col1:
         players,
         key="selected_player",
         disabled=st.session_state["disabled"],
-        placeholder="Select a player to add to your squad",
+        placeholder="",
         index=None,
     )
     add_player_button = st.button(
