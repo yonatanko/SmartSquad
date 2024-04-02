@@ -20,13 +20,6 @@ margins_css = """
 
 st.markdown(margins_css, unsafe_allow_html=True)
 
-# show_pages(
-#     [
-#         Page("pages/main_page.py", "Main Page", ":house:"),
-#         Page("pages/stats_page.py", "Stats Page", ":chart_with_upwards_trend:"),
-#     ]
-# )
-
 # based on the teams in teams.csv, build colors dict
 colors = {
     "Arsenal": "#EF0107",
