@@ -472,7 +472,7 @@ with col1:
         else:
             st.warning("You are already at the last gameweek", icon="⚠️")
 
-    st.write(f":robot_face: We recommend you to start this 11 players for {str(st.session_state.selected_gameweek)}")
+    st.markdown(f"## :robot_face: Recommended Starting 11 players for GW{st.session_state.selected_gameweek}")
     fig = draw_pitch_with_players(starting_11, subs, colors, selected_stats, player_stats)
     st.pyplot(fig)
 
