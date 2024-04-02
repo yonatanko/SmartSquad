@@ -418,7 +418,7 @@ with col1:
                 color = alt.value(colors[player_team])
             ).properties(
                 title=f'{stat_to_show.replace("_", " ").title()} in last 10 matches',
-                width=650,
+                width=350,
                 height=450,
             ).configure_title(
                 anchor='middle'
