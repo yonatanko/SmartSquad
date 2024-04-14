@@ -82,6 +82,51 @@ def get_manager_team_data(manager_id, gw):
 def get_total_fpl_players():
     return get_bootstrap_data()['total_players']
 
+'''
+ele_stats_data = get_bootstrap_data()['element_stats']
+ele_types_data = get_bootstrap_data()['element_types']
+ele_data = get_bootstrap_data()['elements']
+events_data = get_bootstrap_data()['events']
+game_settings_data = get_bootstrap_data()['game_settings']
+phases_data = get_bootstrap_data()['phases']
+teams_data = get_bootstrap_data()['teams']
+total_managers = get_bootstrap_data()['total_players']
+
+
+fixt = pd.DataFrame(get_fixture_data())
+
+tester = get_manager_history_data(657832)
+
+tester = get_manager_details(657832)
+
+ele_df = pd.DataFrame(ele_data)
+
+events_df = pd.DataFrame(events_data)
+
+#keep only required cols
+
+
+ele_cols = ['web_name', 'chance_of_playing_this_round', 'element_type',
+            'event_points', 'form', 'now_cost', 'points_per_game',
+            'selected_by_percent', 'team', 'total_points',
+            'transfers_in_event', 'transfers_out_event', 'value_form',
+            'value_season', 'minutes', 'goals_scored', 'assists',
+            'clean_sheets', 'goals_conceded', 'own_goals', 'penalties_saved',
+            'penalties_missed', 'yellow_cards', 'red_cards', 'saves', 'bonus',
+            'bps', 'influence', 'creativity', 'threat', 'ict_index',
+            'influence_rank', 'influence_rank_type', 'creativity_rank',
+            'creativity_rank_type', 'threat_rank', 'threat_rank_type',
+            'ict_index_rank', 'ict_index_rank_type', 'dreamteam_count']
+
+ele_df = ele_df[ele_cols]
+
+picks_df = get_manager_team_data(9, 4)
+'''
+
+# need to do an original data pull to get historic gw_data for every player_id
+# shouldn't matter if new player_id's are added via tranfsers etc because it
+# should just get added to the big dataset
+
 def remove_moved_players(df):
     strings = ['loan', 'Loan', 'Contract cancelled', 'Left the club',
                'Permanent', 'Released', 'Signed for', 'Transferred',
@@ -114,17 +159,23 @@ def get_name_to_dicts() -> dict:
     name_to_team_dict = dict(zip(ele_df['full_name'], ele_df['team_name']))
     return name_dict, name_to_team_dict
 
-def get_name_and_pos_and_team_dict() -> dict:
+def get_name_and_pos_and_team_dict(web_name=True) -> dict:
     ele_df = pd.DataFrame(get_bootstrap_data()['elements'])
     ele_df = remove_moved_players(ele_df)
     teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
-    ele_df['team_name'] = ele_df['team'].map(teams_df.set_index('id')['name'])
-    name_to_pos_dict = dict(zip(ele_df['web_name'], ele_df['element_type']))
-    name_to_team_dict = dict(zip(ele_df['web_name'], ele_df['team_name']))
+    if web_name:
+        ele_df['team_name'] = ele_df['team'].map(teams_df.set_index('id')['name'])
+        name_to_pos_dict = dict(zip(ele_df['web_name'], ele_df['element_type']))
+        name_to_team_dict = dict(zip(ele_df['web_name'], ele_df['team_name']))
+    else:
+        ele_df['team_name'] = ele_df['team'].map(teams_df.set_index('id')['name'])
+        ele_df['full_name'] = ele_df['first_name'] + ' ' + ele_df['second_name']
+        name_to_pos_dict = dict(zip(ele_df['full_name'], ele_df['element_type']))
+        name_to_team_dict = dict(zip(ele_df['full_name'], ele_df['team_name']))
     return name_to_pos_dict, name_to_team_dict
 
 
-def collate_player_hist() -> pd.DataFrame():
+def collate_player_hist() -> pd.DataFrame:
     res = []
     p_dict = get_player_id_dict()
     for p_id, p_name in p_dict.items():
@@ -135,6 +186,55 @@ def collate_player_hist() -> pd.DataFrame():
         else:
             res.append(resp.json()['history'])
     return pd.DataFrame(res)
+
+# def collate_player() -> pd.DataFrame:
+#     res_hist = []
+#     res_fixt = []
+#     p_dict = get_player_id_dict(web_name=False)
+#     for p_id, p_name in p_dict.items():
+#         resp = requests.get('{}element-summary/{}/'.format(base_url, p_id))
+#         if resp.status_code != 200:
+#             print('Request to {} data failed'.format(p_name))
+#             raise Exception(f'Response was status code {resp.status_code}')
+#         else:
+#             res_hist.append(resp.json()["history"])
+#             fixts_list = resp.json()["fixtures"]
+#             for fixt_dict in fixts_list:
+#                 fixt_dict["p_name"] = p_name.split('(')[0][:-1]
+#                 fixt_dict["p_id"] = p_id
+#             res_fixt.append(fixts_list)
+#     return pd.DataFrame(res_hist), pd.DataFrame(res_fixt)
+
+
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
+
+def fetch_player_data(p_id, p_name, base_url):
+    resp = requests.get(f'{base_url}element-summary/{p_id}/')
+    if resp.status_code != 200:
+        print(f'Request to {p_name} data failed')
+        raise Exception(f'Response was status code {resp.status_code}')
+    else:
+        data = resp.json()
+        history = data["history"]
+        fixtures = data["fixtures"]
+        for fixt_dict in fixtures:
+            fixt_dict["p_name"] = p_name
+            fixt_dict["p_id"] = p_id
+        return history, fixtures
+
+def collate_player(base_url):
+    p_dict = get_player_id_dict()
+    with ThreadPoolExecutor() as executor:
+        # Fetch player data in parallel
+        fetch_func = partial(fetch_player_data, base_url=base_url)
+        results = executor.map(fetch_func, p_dict.keys(), p_dict.values())
+    
+    res_hist, res_fixt = zip(*results)
+    # Concatenate dataframes
+    hist_df = pd.DataFrame(res_hist)
+    fixt_df = pd.concat([pd.DataFrame(fixts) for fixts in res_fixt], ignore_index=True)
+    return hist_df, fixt_df
 
 
 # Team, games_played, wins, losses, draws, goals_for, goals_against, GD,
@@ -256,7 +356,7 @@ def get_fixt_dfs():
     league_df = get_league_table().reset_index()
     fixt_df['team_h'] = fixt_df['team_h'].map(teams_df.set_index('id')['short_name'])
     fixt_df['team_a'] = fixt_df['team_a'].map(teams_df.set_index('id')['short_name'])
-    fixt_df[['team_h', 'team_a', 'team_h_difficulty', 'team_a_difficulty']].to_csv('fixtures.csv')
+    
     gw_dict = dict(zip(range(1,381),
                        [num for num in range(1, 39) for x in range(10)]))
     fixt_df['event_lock'] = fixt_df['id'].map(gw_dict)
