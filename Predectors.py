@@ -53,7 +53,7 @@ def get_scores_and_difficulties():
 
     # Save scores and difficulties dfs
     scores_df.to_csv("scores_df.csv", index=False)
-    difficulties_df.to_csv("difficulties_df.csv", index=False)
+    difficulties_df.to_csv("difficulties_df.csv")
 
 if __name__ == "__main__":
     get_scores_and_difficulties()

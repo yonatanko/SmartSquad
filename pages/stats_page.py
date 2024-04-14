@@ -10,7 +10,7 @@ import streamlit as st
 import google.generativeai as genai
 
 gemini_model = genai.GenerativeModel('gemini-pro')
-genai.configure(api_key="AIzaSyA2UCE2Vk2vsG9UxzWJuNnxfnVHActKmzI")
+genai.configure(api_key="AIzaSyCGmtRzgyzi7uiHkVFWkr2ccO37L9Ydmwc")
 
 warnings.filterwarnings("ignore")
 

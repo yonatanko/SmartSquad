@@ -209,7 +209,7 @@ with col3:
         # create link to main page that will reset the session state
         if st.button("Done", key="done_button"):
             num_to_string_pos = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
-            all_players_points_df = pd.read_csv("scores_df.csv", index_col=0)
+            all_players_points_df = pd.read_csv("scores_df.csv", index_col=1)
             players = [player.split(",") for player in st.session_state["players"]]
             # Extract the points of the selected players from the scores_df
             players_points_df = all_players_points_df.loc[[player[1] for player in players]]

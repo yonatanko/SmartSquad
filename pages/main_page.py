@@ -2,14 +2,14 @@ import streamlit as st
 from mplsoccer import VerticalPitch
 import matplotlib.pyplot as plt
 import pandas as pd
-from data_collection.fpl_api_collection import get_fixt_dfs, get_bootstrap_data, get_name_and_pos_and_team_dict
+from data_collection.fpl_api_collection import get_fixt_dfs, get_bootstrap_data, get_name_and_pos_and_team_dict, get_fixture_dfs
 import google.generativeai as genai
 import os
 import json
 import numpy as np
 
 gemini_model = genai.GenerativeModel('gemini-pro')
-genai.configure(api_key="AIzaSyA2UCE2Vk2vsG9UxzWJuNnxfnVHActKmzI")
+genai.configure(api_key="AIzaSyCGmtRzgyzi7uiHkVFWkr2ccO37L9Ydmwc")
 
 margins_css = """
     <style>
@@ -96,6 +96,8 @@ def match_team_to_season_name(team_id, teams_df):
 def build_all_seasons_df(team_1_name, team_2_name):
     data_dir = os.path.join('Fantasy-Premier-Leaguue', 'data')
     seasons = os.listdir(data_dir)
+    # drop "cleaned_merged_seasons.csv" from the list
+    seasons = [season for season in seasons if season != "cleaned_merged_seasons.csv"]
     seasons = sorted(seasons, key=lambda x: int(x.split('-')[0]))[3:]
     all_seasons_df = pd.DataFrame()
     for season in seasons:
@@ -131,6 +133,9 @@ def color_fixtures(val):
     elif val == 2:
         # light green
         return "#90EE90"
+    elif val == 1:
+        # strong green
+        return "#008000"
     
 def color_to_name(color):
     if color == "#FF0000":
@@ -142,7 +147,7 @@ def color_to_name(color):
     elif color == "#90EE90":
         return ("light green", "Easy")
     else:
-        return ("string green", "Very Easy")
+        return ("strong green", "Very Easy")
 
 if "show_container" not in st.session_state:
     st.session_state.show_container = True
@@ -285,7 +290,7 @@ not_selected_players = [player for player in all_players if player[1] not in pla
 
 # calculate the best starting 11 based on players_points_df in a given gameweek and put the rest on the bench
 subs_names = []
-gameweek_df = players_points_df["GW" + str(st.session_state.selected_gameweek)]
+gameweek_df = players_points_df["GW " + str(st.session_state.selected_gameweek)]
 gameweek_df = gameweek_df.sort_values(ascending=False)
 
 # for each position, select the player with the least expected points and put him on the bench
@@ -306,12 +311,14 @@ subs = [(f"SUB", player[1], player[2]) for player in subs]
 start_11_teams_ids = [match_team_name_to_id(player[2]) for player in starting_11]
 subs_teams_ids = [match_team_name_to_id(player[2]) for player in subs]
 
-team_fdr_df, team_fixt_df, _, _ = get_fixt_dfs()
+_, team_fixt_df, _, _ = get_fixt_dfs()
+# save the team_fdr_df and team_fixt_df
+team_fdr_df = pd.read_csv("difficulties_df.csv", index_col=0)
 
 # Create a dictionary to store the stats for each player
 player_stats = {
     player[1]: {
-        "Expected score": players_points_df.loc[player[1], "GW" + str(st.session_state.selected_gameweek)],
+        "Expected score": players_points_df.loc[player[1], "GW " + str(st.session_state.selected_gameweek)],
         "Next Game": team_fixt_df.iloc[start_11_teams_ids[starting_11.index(player)]-1, st.session_state.selected_gameweek-1 if st.session_state.selected_gameweek < 37 else 37],
     }
     for player in starting_11
@@ -320,7 +327,7 @@ player_stats = {
 # Create a dictionary to store the stats for each player
 subs_stats = {
     player[1]: {
-        "Expected score": players_points_df.loc[player[1], "GW" + str(st.session_state.selected_gameweek)],
+        "Expected score": players_points_df.loc[player[1], "GW " + str(st.session_state.selected_gameweek)],
         "Next Game": team_fixt_df.iloc[subs_teams_ids[subs.index(player)]-1, st.session_state.selected_gameweek-1 if st.session_state.selected_gameweek < 37 else 37],
     }
     for player in subs
@@ -663,6 +670,15 @@ with col3:
             """
             <div style="margin-right: 100px; text-align: center; background-color: #90EE90; color: black;">
                 <p style= "font-size": 20px >Easy</p>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+
+        st.markdown(
+            """
+            <div style="margin-right: 100px; text-align: center; background-color: #008000; color: black;">
+                <p style= "font-size": 20px >Very Easy</p>
             </div>
             """,
             unsafe_allow_html=True,
