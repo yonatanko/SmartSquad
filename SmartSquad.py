@@ -5,6 +5,80 @@ from data_collection.fpl_api_collection import get_name_and_pos_and_team_dict
 import numpy as np
 import pandas as pd
 
+###############################################################################################
+################################## Functions ##################################################
+###############################################################################################
+
+# Function to add a player
+def add_player():
+    """Add a player to the team and update the session state variables"""
+    player_name = st.session_state.selected_player
+    if player_name not in st.session_state["players"]:
+        # check positional constraints
+        position = player_name.split(",")[0]
+        if position == "GK" and st.session_state["position_counter"]["GK"] > 1:
+            with col3:
+                st.warning("Maximum 2 goalkeepers allowed", icon="⚠️")
+                return
+        elif position == "DEF" and st.session_state["position_counter"]["DEF"] > 5:
+            with col3:
+                st.warning("Maximum 6 defenders allowed", icon="⚠️")
+                return
+        elif position == "MID" and st.session_state["position_counter"]["MID"] > 5:
+            with col3:
+                st.warning("Maximum 6 midfielders allowed", icon="⚠️")
+                return
+        elif position == "FWD" and st.session_state["position_counter"]["FWD"] > 3:
+            with col3:
+                st.warning("Maximum 4 forwards allowed", icon="⚠️")
+                return
+            
+        # check club constraints
+        club = player_name.split(",")[2]
+        if club in st.session_state["clubs_counter"] and st.session_state["clubs_counter"][club] > 2:
+            with col3:
+                st.warning("Maximum 3 players allowed from the same club", icon="⚠️")
+                return
+        
+        # Update the session state variables
+        st.session_state["players"].append(player_name)
+        st.session_state["position_counter"][position] += 1
+        
+        if club in st.session_state["clubs_counter"]:
+            st.session_state["clubs_counter"][club] += 1
+        else:
+            st.session_state["clubs_counter"][club] = 1
+
+        check_count()  # Update the count and disabled state after adding
+    else:
+        with col3:
+            st.warning("Player already added", icon="⚠️")
+
+# Manage player addition logic based on the count
+def check_count():
+    """Check the count of players and update the disabled state - if 15 players are picked, disable the add button"""
+    if len(st.session_state["players"]) == 15:
+        st.session_state["disabled"] = True
+    else:
+        st.session_state["disabled"] = False
+
+# Function to remove a player
+def remove_player(player_to_remove):
+    """
+    Remove a player from the team and update the session state variables
+    Args:
+        player_to_remove (tuple): The player to remove from the team (position, name, team)
+    """
+    st.session_state["players"].remove(player_to_remove)
+    position = player_to_remove.split(",")[0]
+    st.session_state["position_counter"][position] -= 1
+    check_count()  # Update the count and disabled state after removal
+    st.rerun()
+
+###############################################################################################
+################################## Main #######################################################
+###############################################################################################
+
 st.set_page_config(
     page_title="SmartSquad",
     page_icon="⚽",
@@ -83,69 +157,9 @@ button[title="View fullscreen"]{
 
 st.markdown(hide_img_fs, unsafe_allow_html=True)
 
-
-# Function to add a player
-def add_player():
-    player_name = st.session_state.selected_player
-    if player_name not in st.session_state["players"]:
-        # check positional constraints
-        position = player_name.split(",")[0]
-        if position == "GK" and st.session_state["position_counter"]["GK"] > 1:
-            with col3:
-                st.warning("Maximum 2 goalkeepers allowed", icon="⚠️")
-                return
-        elif position == "DEF" and st.session_state["position_counter"]["DEF"] > 5:
-            with col3:
-                st.warning("Maximum 6 defenders allowed", icon="⚠️")
-                return
-        elif position == "MID" and st.session_state["position_counter"]["MID"] > 5:
-            with col3:
-                st.warning("Maximum 6 midfielders allowed", icon="⚠️")
-                return
-        elif position == "FWD" and st.session_state["position_counter"]["FWD"] > 3:
-            with col3:
-                st.warning("Maximum 4 forwards allowed", icon="⚠️")
-                return
-            
-        # check club constraints
-        club = player_name.split(",")[2]
-        if club in st.session_state["clubs_counter"] and st.session_state["clubs_counter"][club] > 2:
-            with col3:
-                st.warning("Maximum 3 players allowed from the same club", icon="⚠️")
-                return
-        
-        st.session_state["players"].append(player_name)
-        st.session_state["position_counter"][position] += 1
-        
-        if club in st.session_state["clubs_counter"]:
-            st.session_state["clubs_counter"][club] += 1
-        else:
-            st.session_state["clubs_counter"][club] = 1
-
-        check_count()  # Update the count and disabled state after adding
-    else:
-        with col3:
-            st.warning("Player already added", icon="⚠️")
-
-# Manage player addition logic based on the count
-def check_count():
-    if len(st.session_state["players"]) == 15:
-        st.session_state["disabled"] = True
-    else:
-        st.session_state["disabled"] = False
-
-# Function to remove a player
-def remove_player(player_to_remove):
-    st.session_state["players"].remove(player_to_remove)
-    position = player_to_remove.split(",")[0]
-    st.session_state["position_counter"][position] -= 1
-    check_count()  # Update the count and disabled state after removal
-    st.rerun()
-
 # Split the layout into two columns
 col1, col3 = st.columns([1.2, 1])
         
-
 # Column 1: Player selection and "Add" button
 with col1:
     (
@@ -206,22 +220,26 @@ with col3:
                     "You must pick at least 2 GK, 4 DEF, 4 MID, and 2 FWD",
                     icon="⚠️",
                 )
-        # create link to main page that will reset the session state
+        # If Done is clicked, extract the points of the selected players and not selected players, save the dataframes and and switch to the main page
         if st.button("Done", key="done_button"):
-            num_to_string_pos = {1: "GK", 2: "DEF", 3: "MID", 4: "FWD"}
-            all_players_points_df = pd.read_csv("scores_df.csv", index_col=1)
-            players = [player.split(",") for player in st.session_state["players"]]
+            all_players_points_df = pd.read_csv("scores_df.csv", index_col=1) # Load the predicted scores dataframe
+            players = [player.split(",") for player in st.session_state["players"]] # Convert the players to a list of lists
+
             # Extract the points of the selected players from the scores_df
             players_points_df = all_players_points_df.loc[[player[1] for player in players]]
             players_points_df.drop(columns=["id", "team"], inplace=True)
             players_points_df.to_csv("players_points.csv")
 
+            # Get the names, positions and teams of all the players and extract the not selected players
             name_to_pos_dict, name_to_team_dict = get_name_and_pos_and_team_dict()
-            all_players = [(num_to_string_pos[name_to_pos_dict[player]], player, name_to_team_dict[player]) for player in name_to_pos_dict.keys()]
+            all_players = [(position_mapping[name_to_pos_dict[player]], player, name_to_team_dict[player]) for player in name_to_pos_dict.keys()]
             not_selected_players = [player for player in all_players if player[1] not in players_points_df.index]
 
+            # Extract the points of the not selected players from the scores_df
             not_selected_players_points_df = all_players_points_df.loc[[player[1] for player in not_selected_players]]
             not_selected_players_points_df.drop(columns=["id", "team"], inplace=True)
             not_selected_players_points_df.to_csv("not_selected_players_points.csv")
+
+            # Switch to the main page
             switch_page("main page")
 

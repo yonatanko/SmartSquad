@@ -1,23 +1,12 @@
 import pandas as pd
 import requests
-
+from concurrent.futures import ThreadPoolExecutor
+from functools import partial
 
 base_url = 'https://fantasy.premierleague.com/api/'
 
 
-def get_bootstrap_data() -> dict:
-    """
-    Options
-    -------
-        ['element_stats']
-        ['element_types']
-        ['elements']
-        ['events']
-        ['game_settings']
-        ['phases']
-        ['teams']
-        ['total_players']
-    """
+def get_bootstrap_data():
     resp = requests.get(f'{base_url}bootstrap-static/')
     if resp.status_code != 200:
         raise Exception(f'Response was status code {resp.status_code}')
@@ -25,7 +14,7 @@ def get_bootstrap_data() -> dict:
         return resp.json()
 
 
-def get_fixture_data() -> dict:
+def get_fixture_data():
     resp = requests.get(f'{base_url}fixtures/')
     if resp.status_code != 200:
         raise Exception(f'Response was status code {resp.status_code}')
@@ -33,99 +22,12 @@ def get_fixture_data() -> dict:
         return resp.json()
 
 
-def get_player_data(player_id) -> dict:
-    """
-    Options
-    -------
-        ['fixtures']
-        ['history']
-        ['history_past']
-    """
+def get_player_data(player_id):
     resp = requests.get(f'{base_url}element-summary/{player_id}/')
     if resp.status_code != 200:
         raise Exception(f'Response was status code {resp.status_code}')
     else:
         return resp.json()
-
-
-def get_manager_details(manager_id) -> dict:
-    resp = requests.get(f'{base_url}entry/{manager_id}/')
-    if resp.status_code != 200:
-        raise Exception(f'Response was status code {resp.status_code}')
-    else:
-        return resp.json()
-
-
-def get_manager_history_data(manager_id) -> dict:
-    resp = requests.get(f'{base_url}entry/{manager_id}/history/')
-    if resp.status_code != 200:
-        raise Exception(f'Response was status code {resp.status_code}')
-    else:
-        return resp.json()
-
-
-def get_manager_team_data(manager_id, gw):
-    """
-    Options
-    -------
-        ['active_chip']
-        ['automatic_subs']
-        ['entry_history']
-        ['picks']
-    """
-    resp = requests.get(f'{base_url}entry/{manager_id}/event/{gw}/picks/')
-    if resp.status_code != 200:
-        raise Exception(f'Response was status code {resp.status_code}')
-    return resp.json()
-
-
-def get_total_fpl_players():
-    return get_bootstrap_data()['total_players']
-
-'''
-ele_stats_data = get_bootstrap_data()['element_stats']
-ele_types_data = get_bootstrap_data()['element_types']
-ele_data = get_bootstrap_data()['elements']
-events_data = get_bootstrap_data()['events']
-game_settings_data = get_bootstrap_data()['game_settings']
-phases_data = get_bootstrap_data()['phases']
-teams_data = get_bootstrap_data()['teams']
-total_managers = get_bootstrap_data()['total_players']
-
-
-fixt = pd.DataFrame(get_fixture_data())
-
-tester = get_manager_history_data(657832)
-
-tester = get_manager_details(657832)
-
-ele_df = pd.DataFrame(ele_data)
-
-events_df = pd.DataFrame(events_data)
-
-#keep only required cols
-
-
-ele_cols = ['web_name', 'chance_of_playing_this_round', 'element_type',
-            'event_points', 'form', 'now_cost', 'points_per_game',
-            'selected_by_percent', 'team', 'total_points',
-            'transfers_in_event', 'transfers_out_event', 'value_form',
-            'value_season', 'minutes', 'goals_scored', 'assists',
-            'clean_sheets', 'goals_conceded', 'own_goals', 'penalties_saved',
-            'penalties_missed', 'yellow_cards', 'red_cards', 'saves', 'bonus',
-            'bps', 'influence', 'creativity', 'threat', 'ict_index',
-            'influence_rank', 'influence_rank_type', 'creativity_rank',
-            'creativity_rank_type', 'threat_rank', 'threat_rank_type',
-            'ict_index_rank', 'ict_index_rank_type', 'dreamteam_count']
-
-ele_df = ele_df[ele_cols]
-
-picks_df = get_manager_team_data(9, 4)
-'''
-
-# need to do an original data pull to get historic gw_data for every player_id
-# shouldn't matter if new player_id's are added via tranfsers etc because it
-# should just get added to the big dataset
 
 def remove_moved_players(df):
     strings = ['loan', 'Loan', 'Contract cancelled', 'Left the club',
@@ -134,80 +36,44 @@ def remove_moved_players(df):
     df_copy = df.loc[~df['news'].str.contains('|'.join(strings), case=False)]
     return df_copy
 
-# get player_id list
-
-def get_player_id_dict(web_name=True) -> dict:
-    ele_df = pd.DataFrame(get_bootstrap_data()['elements'])
-    ele_df = remove_moved_players(ele_df)
+def get_player_id_dict(web_name=True):
+    elements_df = pd.DataFrame(get_bootstrap_data()['elements'])
+    elements_df = remove_moved_players(elements_df)
     teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
-    ele_df['team_name'] = ele_df['team'].map(teams_df.set_index('id')['short_name'])
+    elements_df['team_name'] = elements_df['team'].map(teams_df.set_index('id')['short_name'])
     if web_name == True:
-        id_dict = dict(zip(ele_df['id'], ele_df['web_name']))
+        id_dict = dict(zip(elements_df['id'], elements_df['web_name']))
     else:
-        ele_df['full_name'] = ele_df['first_name'] + ' ' + \
-            ele_df['second_name'] + ' (' + ele_df['team_name'] + ')'
-        id_dict = dict(zip(ele_df['id'], ele_df['full_name']))
+        elements_df['full_name'] = elements_df['first_name'] + ' ' + \
+            elements_df['second_name'] + ' (' + elements_df['team_name'] + ')'
+        id_dict = dict(zip(elements_df['id'], elements_df['full_name']))
     return id_dict
 
-def get_name_to_dicts() -> dict:
-    ele_df = pd.DataFrame(get_bootstrap_data()['elements'])
-    ele_df = remove_moved_players(ele_df)
+def get_name_to_dicts():
+    elements_df = pd.DataFrame(get_bootstrap_data()['elements'])
+    elements_df = remove_moved_players(elements_df)
     teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
-    ele_df['team_name'] = ele_df['team'].map(teams_df.set_index('id')['name'])
-    ele_df['full_name'] = ele_df['first_name'] + ' ' + ele_df['second_name']
-    name_dict = dict(zip(ele_df['full_name'], ele_df['id']))
-    name_to_team_dict = dict(zip(ele_df['full_name'], ele_df['team_name']))
+    elements_df['team_name'] = elements_df['team'].map(teams_df.set_index('id')['name'])
+    elements_df['full_name'] = elements_df['first_name'] + ' ' + elements_df['second_name']
+    name_dict = dict(zip(elements_df['full_name'], elements_df['id']))
+    name_to_team_dict = dict(zip(elements_df['full_name'], elements_df['team_name']))
     return name_dict, name_to_team_dict
 
-def get_name_and_pos_and_team_dict(web_name=True) -> dict:
-    ele_df = pd.DataFrame(get_bootstrap_data()['elements'])
-    ele_df = remove_moved_players(ele_df)
+def get_name_and_pos_and_team_dict(web_name=True):
+    elements_df = pd.DataFrame(get_bootstrap_data()['elements'])
+    elements_df = remove_moved_players(elements_df)
     teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
     if web_name:
-        ele_df['team_name'] = ele_df['team'].map(teams_df.set_index('id')['name'])
-        name_to_pos_dict = dict(zip(ele_df['web_name'], ele_df['element_type']))
-        name_to_team_dict = dict(zip(ele_df['web_name'], ele_df['team_name']))
+        elements_df['team_name'] = elements_df['team'].map(teams_df.set_index('id')['name'])
+        name_to_pos_dict = dict(zip(elements_df['web_name'], elements_df['element_type']))
+        name_to_team_dict = dict(zip(elements_df['web_name'], elements_df['team_name']))
     else:
-        ele_df['team_name'] = ele_df['team'].map(teams_df.set_index('id')['name'])
-        ele_df['full_name'] = ele_df['first_name'] + ' ' + ele_df['second_name']
-        name_to_pos_dict = dict(zip(ele_df['full_name'], ele_df['element_type']))
-        name_to_team_dict = dict(zip(ele_df['full_name'], ele_df['team_name']))
+        elements_df['team_name'] = elements_df['team'].map(teams_df.set_index('id')['name'])
+        elements_df['full_name'] = elements_df['first_name'] + ' ' + elements_df['second_name']
+        name_to_pos_dict = dict(zip(elements_df['full_name'], elements_df['element_type']))
+        name_to_team_dict = dict(zip(elements_df['full_name'], elements_df['team_name']))
     return name_to_pos_dict, name_to_team_dict
 
-
-def collate_player_hist() -> pd.DataFrame:
-    res = []
-    p_dict = get_player_id_dict()
-    for p_id, p_name in p_dict.items():
-        resp = requests.get('{}element-summary/{}/'.format(base_url, p_id))
-        if resp.status_code != 200:
-            print('Request to {} data failed'.format(p_name))
-            raise Exception(f'Response was status code {resp.status_code}')
-        else:
-            res.append(resp.json()['history'])
-    return pd.DataFrame(res)
-
-# def collate_player() -> pd.DataFrame:
-#     res_hist = []
-#     res_fixt = []
-#     p_dict = get_player_id_dict(web_name=False)
-#     for p_id, p_name in p_dict.items():
-#         resp = requests.get('{}element-summary/{}/'.format(base_url, p_id))
-#         if resp.status_code != 200:
-#             print('Request to {} data failed'.format(p_name))
-#             raise Exception(f'Response was status code {resp.status_code}')
-#         else:
-#             res_hist.append(resp.json()["history"])
-#             fixts_list = resp.json()["fixtures"]
-#             for fixt_dict in fixts_list:
-#                 fixt_dict["p_name"] = p_name.split('(')[0][:-1]
-#                 fixt_dict["p_id"] = p_id
-#             res_fixt.append(fixts_list)
-#     return pd.DataFrame(res_hist), pd.DataFrame(res_fixt)
-
-
-from concurrent.futures import ThreadPoolExecutor
-from functools import partial
 
 def fetch_player_data(p_id, p_name, base_url):
     resp = requests.get(f'{base_url}element-summary/{p_id}/')
@@ -237,8 +103,6 @@ def collate_player(base_url):
     return hist_df, fixt_df
 
 
-# Team, games_played, wins, losses, draws, goals_for, goals_against, GD,
-# PTS, Form? [W,W,L,D,W]
 def get_league_table():
     fixt_df = pd.DataFrame(get_fixture_data())
     teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
@@ -307,20 +171,10 @@ def get_current_gw():
     return current_gw
 
 
-def get_current_season():
-    events_df = pd.DataFrame(get_bootstrap_data()['events'])
-    id_first = events_df['deadline_time'].str[:4].iloc[0]
-    id_last = events_df['deadline_time'].str[2:4].iloc[-1]
-    current_season = str(id_first) + '/' + str(id_last)
-    return current_season
-
-
 def get_fixture_dfs():
-    # doubles??
     fixt_df = pd.DataFrame(get_fixture_data())
     teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
     teams_list = teams_df['short_name'].unique().tolist()
-    # don't need to worry about double fixtures just yet!
     fixt_df['team_h'] = fixt_df['team_h'].map(teams_df.set_index('id')['short_name'])
     fixt_df['team_a'] = fixt_df['team_a'].map(teams_df.set_index('id')['short_name'])
     gw_dict = dict(zip(range(1,381),
@@ -349,7 +203,7 @@ def get_fixture_dfs():
     return team_fdr_df, team_fixt_df
 
 
-def get_fixt_dfs():
+def get_fixtures_for_table():
     fixt_df = pd.DataFrame(get_fixture_data())
     teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
     teams_list = teams_df['short_name'].unique().tolist()
@@ -400,89 +254,4 @@ def get_fixt_dfs():
     team_ga_df = pd.concat(team_ga_data).set_index(0)
     team_gf_df = pd.concat(team_gf_data).set_index(0)
     return team_fdr_df, team_fixt_df, team_ga_df, team_gf_df
-
-
-def get_current_season():
-    events_df = pd.DataFrame(get_bootstrap_data()['events'])
-    start_year = events_df.iloc[0]['deadline_time'][:4]
-    end_year = events_df.iloc[37]['deadline_time'][2:4]
-    season = start_year + '/' + end_year
-    return season
     
-    
-def get_player_url_list():
-    id_dict = get_player_id_dict(order_by_col='id')
-    url_list = [base_url + f'element-summary/{k}/' for k, v in id_dict.items()]
-    return url_list
-
-
-def filter_fixture_dfs_by_gw():
-    fdr_df, fixt_df, team_ga_df, team_gf_df = get_fixt_dfs()
-    ct_gw = get_current_gw()
-    new_fixt_df = fixt_df.loc[:, ct_gw:(ct_gw+2)]
-    new_fixt_cols = ['GW' + str(col) for col in new_fixt_df.columns.tolist()]
-    new_fixt_df.columns = new_fixt_cols
-    new_fdr_df = fdr_df.loc[:, ct_gw:(ct_gw+2)]
-    new_fdr_df.columns = new_fixt_cols
-    return new_fixt_df, new_fdr_df
-
-
-def add_fixts_to_lg_table(new_fixt_df):
-    league_df = get_league_table().join(new_fixt_df)
-    league_df = league_df.reset_index()
-    league_df.rename(columns={'team': 'Team'}, inplace=True)
-    league_df.index += 1
-    league_df['GD'] = league_df['GD'].map('{:+}'.format)
-    return league_df
-
-
-## Very slow to load, works but needs to be sped up.
-def get_home_away_str_dict():
-    new_fixt_df, new_fdr_df = filter_fixture_dfs_by_gw()
-    result_dict = {}
-    for column in new_fdr_df.columns:
-        values = list(new_fdr_df[column])
-        strings = list(new_fixt_df[column])
-        value_dict = {}
-        for value, string in zip(values, strings):
-            if value not in value_dict:
-                value_dict[value] = []
-            value_dict[value].append(string)
-        result_dict[column] = value_dict
-    
-    merged_dict = {}
-    for k, dict1 in result_dict.items():
-        for key, value in dict1.items():
-            if key in merged_dict:
-                merged_dict[key].extend(value)
-            else:
-                merged_dict[key] = value
-    for k, v in merged_dict.items():
-        decoupled_list = list(set(v))
-        merged_dict[k] = decoupled_list
-    for i in range(1,6):
-        if i not in merged_dict:
-            merged_dict[i] = []
-    return merged_dict
-
-
-def color_fixtures(val):
-    ha_dict = get_home_away_str_dict()
-    bg_color = 'background-color: '
-    font_color = 'color: '
-    if any(i in val for i in ha_dict[1]):
-        bg_color += '#147d1b' # green
-    elif any(i in val for i in ha_dict[2]):
-        bg_color += '#00ff78' # light green
-    elif any(i in val for i in ha_dict[3]):
-        bg_color += '#eceae6' # grey
-    elif any(i in val for i in ha_dict[4]):
-        bg_color += '#ff0057' # red
-        font_color += 'white'
-    elif any(i in val for i in ha_dict[5]):
-        bg_color += '#920947' # dark red
-        font_color += 'white'
-    else:
-        bg_color += ''
-    style = bg_color + '; ' + font_color
-    return style

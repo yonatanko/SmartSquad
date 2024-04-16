@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from data_collection.fpl_api_collection import (get_league_table, get_current_gw, get_fixt_dfs, get_bootstrap_data, get_player_data, get_player_id_dict, get_name_to_dicts)
+from data_collection.fpl_api_collection import (get_league_table, get_current_gw, get_fixtures_for_table, get_bootstrap_data, get_player_data, get_player_id_dict, get_name_to_dicts)
 import json
 import os
 import warnings
@@ -9,113 +9,16 @@ from streamlit_extras.row import row
 import streamlit as st
 import google.generativeai as genai
 
-gemini_model = genai.GenerativeModel('gemini-pro')
-genai.configure(api_key="AIzaSyCGmtRzgyzi7uiHkVFWkr2ccO37L9Ydmwc")
-
-warnings.filterwarnings("ignore")
-
-base_url = 'https://fantasy.premierleague.com/api/'
-
-colors = {
-    "Arsenal": "#EF0107",
-    "Aston Villa": "#95BFE5",
-    "Bournemouth": "#DA291C",
-    "Brentford": "#FFDB00",
-    "Brighton": "#0057B8",
-    "Burnley": "#6C1D45",
-    "Chelsea": "#034694",
-    "Crystal Palace": "#1B458F",
-    "Everton": "#003399",
-    "Fulham": "#000000",
-    "Leicester": "#003090",
-    "Liverpool": "#C8102E",
-    "Luton": "#FF5000",
-    "Man City": "#6CABDD",
-    "Man Utd": "#DA291C",
-    "Newcastle": "#241F20",
-    "Nott'm Forest": "#FFCC00",
-    "Sheffield Utd": "#EE2737",
-    "Spurs": "#102257",
-    "West Ham": "#7A263A",
-    "Wolves": "#FDB913",
-}
-
-if "selected_stats" not in st.session_state:
-    st.session_state.selected_stats = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
-
-league_df = get_league_table()
-
-team_fdr_df, team_fixt_df, team_ga_df, team_gf_df = get_fixt_dfs()
-team_fixt_df.to_csv("team_fixt_df.csv")
-
-ct_gw = get_current_gw()
-
-new_fixt_df = team_fixt_df.loc[:, ct_gw:(ct_gw+2)]
-new_fixt_cols = ['GW' + str(col) for col in new_fixt_df.columns.tolist()]
-new_fixt_df.columns = new_fixt_cols
-
-new_fdr_df = team_fdr_df.loc[:, ct_gw:(ct_gw+2)]
-
-league_df = league_df.join(new_fixt_df)
-
-float_cols = league_df.select_dtypes(include='float64').columns.values
-
-league_df = league_df.reset_index()
-league_df.rename(columns={'team': 'Team'}, inplace=True)
-league_df.index += 1
-
-league_df['GD'] = league_df['GD'].map('{:+}'.format)
-
-teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
-
-team1_stats = {
-        "home":{
-            "goals": [],
-            "yellow_cards": [],
-            "red_cards": [],
-            "assists": [],
-            "wins": 0,
-            "draws": 0,
-            "losses": 0,
-            "season": []
-        }, 
-        "away":{
-            "goals": [],
-            "yellow_cards": [],
-            "red_cards": [],
-            "assists": [],
-            "wins": 0,
-            "draws": 0,
-            "losses": 0,
-            "season": []
-        }
-    }
-
-team2_stats = {
-    "home":{
-        "goals": [],
-        "yellow_cards": [],
-        "red_cards": [],
-        "assists": [],
-        "wins": 0,
-        "draws": 0,
-        "losses": 0,
-        "season": []
-    }, 
-    "away":{
-        "goals": [],
-        "yellow_cards": [],
-        "red_cards": [],
-        "assists": [],
-        "wins": 0,
-        "draws": 0,
-        "losses": 0,
-        "season": []
-    }
-}
-
+###############################################################################################
+################################## Functions ##################################################
+###############################################################################################
 
 def get_home_away_str_dict():
+    """
+    Function to get the home and away strings for the color_fixtures function.
+    Returns:
+        Dict: Dictionary with the home and away strings for each color.
+    """
     new_fdr_df.columns = new_fixt_cols
     result_dict = {}
     for col in new_fdr_df.columns:
@@ -146,11 +49,15 @@ def get_home_away_str_dict():
             merged_dict[i] = []
     return merged_dict
 
-
-home_away_dict = get_home_away_str_dict()
-
-
 def color_fixtures(val):
+    """
+    Function to color the fixtures based on the home and away teams.
+    Args:
+        val (int): The value to color based on the home and away teams.
+
+    Returns:
+        string: The type of the value.
+    """
     bg_color = 'background-color: '
     font_color = 'color: '
     if val in home_away_dict[1]:
@@ -170,31 +77,49 @@ def color_fixtures(val):
     style = bg_color + '; ' + font_color
     return style
 
-for col in new_fixt_cols:
-    if league_df[col].dtype == 'O':
-        max_length = league_df[col].str.len().max()
-        if max_length > 7:
-            league_df.loc[league_df[col].str.len() <= 7, col] = league_df[col].str.pad(width=max_length+9, side='both', fillchar=' ')
-
-# league_df['GW7'] = ' ' * 10 + league_df['GW7'] + ' ' * 10
-league_df.loc[league_df['Team'] == 'EVE', 'Team'] = 'EVE*'
-
 def match_team_to_season_id(team_name, teams_df):
+    """
+    Function to match the team name to the team id in the season data.
+    Args:
+        team_name (string): The name of the team to match.
+        teams_df (pandas.Dataframe): The dataframe with the team data.
+
+    Returns:
+        string: The team id in the season data.
+    """
     for _,team in teams_df.iterrows():
         if team['name'] == team_name:
             return team['id']
         
 def match_team_to_season_name(team_id, teams_df):
+    """
+    Function to match the team id to the team name in the season data.
+    Args:
+        team_id (string): The id of the team to match.
+        teams_df (pandas.Dataframe): The dataframe with the team data.
+
+    Returns:
+        string: The team name in the season data.
+    """
     for _,team in teams_df.iterrows():
         if team['id'] == team_id:
             return team['name']
         
 def build_all_seasons_df(team_1_name, team_2_name):
+    """
+    Function to build a dataframe with all the raw head-to-head data between two teams.
+    Args:
+        team_1_name (string): The name of the first team.
+        team_2_name (string): The name of the second team.
+
+    Returns:
+        pandas.Dataframe: The dataframe with all the head-to-head matches between the two teams.
+    """
     data_dir = os.path.join('Fantasy-Premier-Leaguue', 'data')
     seasons = os.listdir(data_dir)
     seasons = sorted(seasons, key=lambda x: int(x.split('-')[0]))[3:]
     all_seasons_df = pd.DataFrame()
-    for season in seasons:
+    for season in seasons: # loop over seasons from 2019-20 to 2023-24
         data_path = os.path.join(data_dir, season, 'fixtures.csv')
         teams_path = os.path.join(data_dir, season, 'teams.csv') 
         df = pd.read_csv(data_path)
@@ -215,6 +140,14 @@ def build_all_seasons_df(team_1_name, team_2_name):
     return all_seasons_df
 
 def extract_key_stats_updated(stats_str):
+    """
+    Function to extract the key stats from the stats string.
+    Args:
+        stats_str (Json): The stats string to extract the key stats from.
+
+    Returns:
+        Dict: The dictionary with the extracted key stats.
+    """
     stats = json.loads(stats_str.replace("'", "\""))
     extracted_stats = {
         'home_goals': 0,  
@@ -247,6 +180,13 @@ def extract_key_stats_updated(stats_str):
     return extracted_stats
 
 def create_head_to_head_stats(team1, team2, df):
+    """
+    Function to create the head-to-head stats between two teams in the wanted format.
+    Args:
+        team1 (string): The name of the first team.
+        team2 (string): The name of the second team.
+        df (pandas.Dataframe): raw head-to-head data between the two teams.
+    """
     selected_stats = st.session_state["selected_stats"]
     if team1 != team2 and team1 != None and team2 != None:
         if not df.empty:
@@ -364,6 +304,162 @@ def create_head_to_head_stats(team1, team2, df):
         else:
             st.warning("Please select two different teams.")
 
+def create_stats_bar(player_id, player_team, stat_to_show):
+    """
+    Function to create a bar chart with the selected stat for the last 10 matches of the player.
+    Args:
+        player_id (string): The id of the player to show the stats for.
+        player_team (string): players' team name
+        stat_to_show (string): The stat to show in the bar chart.
+    """
+    stat_to_show = stat_to_show.lower().replace(" ", "_")
+    data_df = pd.DataFrame()
+    player_fixtures = get_player_data(player_id)["history"]
+    last_10_matches = player_fixtures[-10:]
+    # create bar chart with number of goals
+    for match in last_10_matches:
+        match["opponent_team"] = match_team_to_season_name(match["opponent_team"], teams_df)
+        data_df = data_df.append(match, ignore_index=True)
+
+    data_df = data_df.sort_values(by="kickoff_time", ascending=True).reset_index(drop=True)
+    # make all columns numeric
+    data_df[stat_to_show] = pd.to_numeric(data_df[stat_to_show], errors='coerce')
+    # show bar char by the df order
+    st.write(
+        alt.Chart(data_df).mark_bar().encode(
+            x=alt.X('opponent_team', sort=None, title='Opponent Team (Earliest (left) to Latest (right))'),
+            y=alt.Y(stat_to_show),  # Define domain to prevent inversion and remove gaps
+            color = alt.value(colors[player_team])
+        ).properties(
+            title=f'{stat_to_show.replace("_", " ").title()} in last 10 matches',
+            width=450,
+            height=450,
+        ).configure_title(
+            anchor='middle'
+        )
+    )
+
+###############################################################################################
+################################## Main #######################################################
+###############################################################################################
+
+gemini_model = genai.GenerativeModel('gemini-pro')
+genai.configure(api_key="AIzaSyCGmtRzgyzi7uiHkVFWkr2ccO37L9Ydmwc")
+
+warnings.filterwarnings("ignore")
+
+base_url = 'https://fantasy.premierleague.com/api/'
+
+colors = {
+    "Arsenal": "#EF0107",
+    "Aston Villa": "#95BFE5",
+    "Bournemouth": "#DA291C",
+    "Brentford": "#FFDB00",
+    "Brighton": "#0057B8",
+    "Burnley": "#6C1D45",
+    "Chelsea": "#034694",
+    "Crystal Palace": "#1B458F",
+    "Everton": "#003399",
+    "Fulham": "#000000",
+    "Leicester": "#003090",
+    "Liverpool": "#C8102E",
+    "Luton": "#FF5000",
+    "Man City": "#6CABDD",
+    "Man Utd": "#DA291C",
+    "Newcastle": "#241F20",
+    "Nott'm Forest": "#FFCC00",
+    "Sheffield Utd": "#EE2737",
+    "Spurs": "#102257",
+    "West Ham": "#7A263A",
+    "Wolves": "#FDB913",
+}
+
+if "selected_stats" not in st.session_state:
+    st.session_state.selected_stats = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
+
+# Creation of the league table
+league_df = get_league_table()
+
+_, team_fixt_df, _, _ = get_fixtures_for_table()
+team_fdr_df = pd.read_csv('difficulties_df.csv', index_col=0)
+
+ct_gw = get_current_gw()
+
+new_fixt_df = team_fixt_df.loc[:, ct_gw:(ct_gw+2)]
+new_fixt_cols = ['GW' + str(col) for col in new_fixt_df.columns.tolist()]
+new_fixt_df.columns = new_fixt_cols
+
+new_fdr_df = team_fdr_df.loc[:, ct_gw:(ct_gw+2)]
+
+league_df = league_df.join(new_fixt_df)
+
+float_cols = league_df.select_dtypes(include='float64').columns.values
+
+league_df = league_df.reset_index()
+league_df.rename(columns={'team': 'Team'}, inplace=True)
+league_df.index += 1
+
+league_df['GD'] = league_df['GD'].map('{:+}'.format)
+
+teams_df = pd.DataFrame(get_bootstrap_data()['teams'])
+
+team1_stats = {
+        "home":{
+            "goals": [],
+            "yellow_cards": [],
+            "red_cards": [],
+            "assists": [],
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "season": []
+        }, 
+        "away":{
+            "goals": [],
+            "yellow_cards": [],
+            "red_cards": [],
+            "assists": [],
+            "wins": 0,
+            "draws": 0,
+            "losses": 0,
+            "season": []
+        }
+    }
+
+team2_stats = {
+    "home":{
+        "goals": [],
+        "yellow_cards": [],
+        "red_cards": [],
+        "assists": [],
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "season": []
+    }, 
+    "away":{
+        "goals": [],
+        "yellow_cards": [],
+        "red_cards": [],
+        "assists": [],
+        "wins": 0,
+        "draws": 0,
+        "losses": 0,
+        "season": []
+    }
+}
+
+home_away_dict = get_home_away_str_dict()
+
+for col in new_fixt_cols:
+    if league_df[col].dtype == 'O':
+        max_length = league_df[col].str.len().max()
+        if max_length > 7:
+            league_df.loc[league_df[col].str.len() <= 7, col] = league_df[col].str.pad(width=max_length+9, side='both', fillchar=' ')
+
+# league_df['GW7'] = ' ' * 10 + league_df['GW7'] + ' ' * 10
+league_df.loc[league_df['Team'] == 'EVE', 'Team'] = 'EVE*'
+
 # Premier League Table - title in the center of the page
 st.title('Premier League Table :trophy:')
 st.write('Current Gameweek: ', str(ct_gw))
@@ -376,10 +472,10 @@ st.text('*Everton received a 10 Point deduction on 17/11/2023 for breaching Fina
 
 st.markdown("---")
 
-col1, col2 = st.columns([1.4,1], gap="Large")
+col1, col2 = st.columns([1.4,1], gap="Large") # Col 1 : Head-to-Head Stats, Col 2 : Player Form
 
+# Head-to-Head Stats table
 with col1:
-    # Head-to-Head Stats
     st.title('Teams Head-to-Head :vs:')
     empty_row = row(1)
     inner_col1, inner_col2 = st.columns([1.8, 2])
@@ -387,7 +483,7 @@ with col1:
     # Function to get the team's name mapping (you would replace this with actual team names if available)
     team_names = teams_df["name"].to_list()
 
-    with inner_col1:
+    with inner_col1: # Team selection widgets
         team1 = st.selectbox('Choose Team 1:', options=sorted(team_names), placeholder='Select Team 1', index=None, on_change=None, key="stat_team1")
         team2 = st.selectbox('Choose Team 2:', options=sorted(team_names), placeholder='Select Team 2', index=None, on_change=None, key="stat_team2")
         if team1 != team2 and team1 != None and team2 != None:
@@ -395,37 +491,9 @@ with col1:
             # Here we define the stats options for the multiselect widget.
             stats_options = ['Wins', 'Draws', 'Losses', 'Goals', 'Assists', 'Yellow Cards', 'Red Cards', 'Won At Home %', 'Won Away %']
             st.session_state["selected_stats"] = st.multiselect('Select stats to show:', stats_options, default=stats_options, on_change=None)
-            create_head_to_head_stats(team1, team2, df)
+            create_head_to_head_stats(team1, team2, df) # Creation of the head-to-head stats table in the inner_col2
 
-    def create_stats_bar(player_id, player_team, stat_to_show):
-        stat_to_show = stat_to_show.lower().replace(" ", "_")
-        data_df = pd.DataFrame()
-        player_fixtures = get_player_data(player_id)["history"]
-        last_10_matches = player_fixtures[-10:]
-        # create bar chart with number of goals
-        for match in last_10_matches:
-            match["opponent_team"] = match_team_to_season_name(match["opponent_team"], teams_df)
-            data_df = data_df.append(match, ignore_index=True)
-
-        data_df = data_df.sort_values(by="kickoff_time", ascending=True).reset_index(drop=True)
-        # make all columns numeric
-        data_df[stat_to_show] = pd.to_numeric(data_df[stat_to_show], errors='coerce')
-        # show bar char by the df order
-        st.write(
-            alt.Chart(data_df).mark_bar().encode(
-                x=alt.X('opponent_team', sort=None, title='Opponent Team (Earliest (left) to Latest (right))'),
-                y=alt.Y(stat_to_show),  # Define domain to prevent inversion and remove gaps
-                color = alt.value(colors[player_team])
-            ).properties(
-                title=f'{stat_to_show.replace("_", " ").title()} in last 10 matches',
-                width=450,
-                height=450,
-            ).configure_title(
-                anchor='middle'
-            )
-        )
-
-
+# Player Form
 with col2:
     st.title('Player Form :zap:')
     row1 = row(0, gap="small")
@@ -442,9 +510,9 @@ with col2:
         player_team = players_teams_dict[player_name]
         create_stats_bar(player_id, player_team, stat_to_show)
 
+# Team form explanation using Gemini model
 st.markdown('---')
-
-col3, col4 = st.columns(2)
+col3, col4 = st.columns(2) # Col 3 : Team selection, Col 4 : Gemini Model output
 with col3:
     # use gemini model to show a picked by user team's form
     st.title('Team Form :chart_with_upwards_trend:')
@@ -452,10 +520,10 @@ with col3:
     team_name = st.selectbox('Select Team:', options=sorted(team_names), placeholder='Select Team', index=None, on_change=None, key="team_name")
 
 with col4:
-    if team_name:
+    if team_name: # if the user picked a team
         all_fixtures = pd.read_csv('Fantasy-Premier-Leaguue/data/2023-24/fixtures.csv')
         team_id = match_team_to_season_id(team_name, teams_df)
-        team_fixtures = all_fixtures[(all_fixtures['team_h'] == team_id) | (all_fixtures['team_a'] == team_id)]
+        team_fixtures = all_fixtures[(all_fixtures['team_h'] == team_id) | (all_fixtures['team_a'] == team_id)] # filter out fixtures that the team played in
         # filter out fixtures that are not played yet
         team_fixtures = team_fixtures[team_fixtures['finished'] == True][['team_h', 'team_a', 'team_h_score', 'team_a_score']]
         # convert to team names
@@ -463,9 +531,6 @@ with col4:
         team_fixtures['team_a'] = team_fixtures['team_a'].apply(lambda x: match_team_to_season_name(x, teams_df))
         # take last 5 fixtures
         team_fixtures = team_fixtures.tail(5) # last 5 fixturessa
-        # transform to dict of: list of dicts: [{team_h: team_h_score, team_a: team_a_score}]
-        # team_fixtures_str = team_fixtures.to_string(index=False)
-        # transform to df with the following columns: opponent_team, was_home, won, lost, draw, goals
         new_fixtures = team_fixtures.copy()
         new_fixtures['won'] = new_fixtures.apply(lambda x: 1 if x['team_h'] == team_name and x['team_h_score'] > x['team_a_score'] or x['team_a'] == team_name and x['team_a_score'] > x['team_h_score'] else 0, axis=1)
         new_fixtures['lost'] = new_fixtures.apply(lambda x: 1 if x['team_h'] == team_name and x['team_h_score'] < x['team_a_score'] or x['team_a'] == team_name and x['team_a_score'] < x['team_h_score'] else 0, axis=1)
@@ -480,5 +545,3 @@ with col4:
         text = response.text.replace('•', '*')
         st.title(" ")
         st.markdown(f":robot_face:: {text}")
-
-        
