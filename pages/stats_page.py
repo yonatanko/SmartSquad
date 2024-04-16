@@ -389,7 +389,7 @@ new_fixt_df = team_fixt_df.iloc[:, ct_gw:(ct_gw+2)]
 new_fixt_cols = ['GW' + str(col) for col in new_fixt_df.columns.tolist()]
 new_fixt_df.columns = new_fixt_cols
 
-new_fdr_df = team_fdr_df.loc[:, ct_gw:(ct_gw+2)]
+new_fdr_df = team_fdr_df.iloc[:, ct_gw:(ct_gw+2)]
 
 league_df = league_df.join(new_fixt_df)
 
