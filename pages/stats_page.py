@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from data_collection.fpl_api_collection import (get_league_table, get_current_gw, get_fixtures_for_table, get_bootstrap_data, get_player_data, get_player_id_dict, get_name_to_dicts)
+from data_collection.fpl_api_collection import (get_league_table, get_current_gw, get_fixtures_for_table, get_bootstrap_data, get_player_data, get_name_to_dicts)
 import json
 import os
 import warnings
