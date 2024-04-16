@@ -117,8 +117,8 @@ def build_all_seasons_df(team_1_name, team_2_name):
     """
     data_dir = os.path.join('Fantasy-Premier-Leaguue', 'data')
     seasons = os.listdir(data_dir)
-    seasons = sorted(seasons, key=lambda x: int(x.split('-')[0]))[3:]
     seasons = [season for season in seasons if season != "cleaned_merged_seasons.csv"]
+    seasons = sorted(seasons, key=lambda x: int(x.split('-')[0]))[3:]
     all_seasons_df = pd.DataFrame()
     for season in seasons: # loop over seasons from 2019-20 to 2023-24
         data_path = os.path.join(data_dir, season, 'fixtures.csv')
