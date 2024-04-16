@@ -385,7 +385,7 @@ team_fdr_df = pd.read_csv('difficulties_df.csv', index_col=0)
 
 ct_gw = get_current_gw()
 
-new_fixt_df = team_fixt_df.loc[:, ct_gw:(ct_gw+2)]
+new_fixt_df = team_fixt_df.iloc[:, ct_gw:(ct_gw+2)]
 new_fixt_cols = ['GW' + str(col) for col in new_fixt_df.columns.tolist()]
 new_fixt_df.columns = new_fixt_cols
 
