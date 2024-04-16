@@ -228,11 +228,12 @@ with col3:
             # Extract the points of the selected players from the scores_df
             players_points_df = all_players_points_df.loc[[player[1] for player in players]]
             players_points_df.drop(columns=["id", "team"], inplace=True)
-            players_points_df.to_csv("players_points.csv")
+            players_points_df.to_csv("players_points.csv") # Save the selected players points dataframe
 
             # Get the names, positions and teams of all the players and extract the not selected players
             name_to_pos_dict, name_to_team_dict = get_name_and_pos_and_team_dict()
-            all_players = [(position_mapping[name_to_pos_dict[player]], player, name_to_team_dict[player]) for player in name_to_pos_dict.keys()]
+            all_players_names = all_players_points_df.index # Get the names of all the players
+            all_players = [(position_mapping[name_to_pos_dict[player]], player, name_to_team_dict[player]) for player in all_players_names]
             not_selected_players = [player for player in all_players if player[1] not in players_points_df.index]
 
             # Extract the points of the not selected players from the scores_df
