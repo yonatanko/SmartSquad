@@ -10,14 +10,18 @@
 
 <h2>:recycle: Reproduction of Model results</h2>
 <p>If you wish to reproduce the scores_df.csv and the difficulties_df.csv : </p>
-<p> 1) Download the Repo locally</p>
-<p> 2) Download the requirements </p>
+<p> 1. Clone the GitHub repository:</p>
 
 ```
-pip install requirements.txt
+git clone https://github.com/yonatanko/SmartSquad.git
+```
+<p> 2. Install the required packages using pip: </p>
+
+```
+pip install -r requirements.txt
 ```
 
-<p> 3) Run the Predectors.py </p>
+<p> 3. Run the Predectors.py </p>
 
 ```
 python Predectors.py
