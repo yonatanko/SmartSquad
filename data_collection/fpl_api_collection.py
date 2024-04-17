@@ -2,6 +2,8 @@ import pandas as pd
 import requests
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
+import time
+import json
 
 base_url = 'https://fantasy.premierleague.com/api/'
 
@@ -254,4 +256,18 @@ def get_fixtures_for_table():
     team_ga_df = pd.concat(team_ga_data).set_index(0)
     team_gf_df = pd.concat(team_gf_data).set_index(0)
     return team_fdr_df, team_fixt_df, team_ga_df, team_gf_df
+
+def get_fixtures_df():
+    url = "https://fantasy.premierleague.com/api/fixtures/"
+    response = ''
+    while response == '':
+        try:
+            response = requests.get(url)
+        except:
+            time.sleep(5)
+    if response.status_code != 200:
+        raise Exception("Response was code " + str(response.status_code))
+    data = json.loads(response.text)
+    fixtures_df = pd.DataFrame.from_records(data)
+    return fixtures_df
     

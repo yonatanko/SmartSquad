@@ -1,6 +1,6 @@
 import streamlit as st
 import pandas as pd
-from data_collection.fpl_api_collection import (get_league_table, get_fixture_dfs, get_current_gw, get_fixtures_for_table, get_bootstrap_data, get_player_data, get_name_to_dicts)
+from data_collection.fpl_api_collection import (get_league_table, get_fixtures_df, get_current_gw, get_fixtures_for_table, get_bootstrap_data, get_player_data, get_name_to_dicts)
 import json
 import os
 import warnings
@@ -522,7 +522,7 @@ with col3:
 
 with col4:
     if team_name: # if the user picked a team
-        _, all_fixtures = get_fixture_dfs()
+        all_fixtures = get_fixtures_df()
         team_id = match_team_to_season_id(team_name, teams_df)
         team_fixtures = all_fixtures[(all_fixtures['team_h'] == team_id) | (all_fixtures['team_a'] == team_id)] # filter out fixtures that the team played in
         # filter out fixtures that are not played yet
