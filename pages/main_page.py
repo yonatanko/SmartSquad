@@ -506,7 +506,7 @@ def create_head_to_head_stats_for_inference(team1, team2, df):
 
 # Initialize the GenerativeAI model
 gemini_model = genai.GenerativeModel('gemini-pro')
-genai.configure(api_key="AIzaSyCGmtRzgyzi7uiHkVFWkr2ccO37L9Ydmwc")
+genai.configure(api_key="AIzaSyBkmXlYvHCJHSgsJlCyR9RXtDpHH2GqDpU")
 
 # Define the CSS for the margins
 margins_css = """
