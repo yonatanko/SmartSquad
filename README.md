@@ -36,8 +36,8 @@ Both CSV files will appear in your folder afterward.
 .
 ├── .streamlit                  # Streamlit configuration files
 ├── Fantasy-Premier-Leaguue     # Static Data Folder                   
-├── data_collection
-    ├── fpl_api_collection.py   # Dynamic Data collection functions          
+├── data_collection             # Dynamic Data collection folder
+    ├── fpl_api_collection.py   # Dynamic Data collection code         
 ├── pages                       # Web pages folder
     ├── main_page.py            # Main page code
     ├── stats_page.py           # Statistics and charts page code
