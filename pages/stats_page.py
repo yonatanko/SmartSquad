@@ -541,6 +541,7 @@ with col4:
         new_fixtures['opponent_team'] = new_fixtures.apply(lambda x: x['team_h'] if x['team_h'] != team_name else x['team_a'], axis=1)
         new_fixtures = new_fixtures[['opponent_team', 'won', 'lost', 'draw', 'goals scored', 'goals conceded']]
         team_fixtures_str = new_fixtures.to_string(index=False)
+        st.text(team_fixtures_str)
         text_prompt = f"analyze the form of {team_name} in the last 5 matches based on this data only: {team_fixtures_str}. summarize it in a passage without headline"
         response = gemini_model.generate_content(text_prompt)
         text = response.text.replace('•', '*')
