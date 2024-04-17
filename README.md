@@ -21,8 +21,6 @@ git clone https://github.com/yonatanko/SmartSquad.git
 pip install -r requirements.txt
 ```
 
-<h2></h2>
-
 <p> 3. Run the Predectors.py </p>
 
 ```
