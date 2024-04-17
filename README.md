@@ -65,8 +65,10 @@ Both CSV files will appear in your folder afterward.
 ├── Predectors.py               # Scores and difficulties prediction code
 ├── SmartSquad.py               # Welcome page code
 ├── app_image.png               # app logo
+├── config.json                 # json with the Gemini key declaration
 ├── difficulties_df.csv         # fixtures difficulties data predicted by our AI model
-├── scores_df.csv               # Players' scores prediction data predicted by our AI model
 ├── requirements.txt            # Requirements of the Project
+├── scores_df.csv               # Players' scores prediction data predicted by our AI model
+├── utils.py                    # Getter function for the Gemini key
 └── README.md
 ```
