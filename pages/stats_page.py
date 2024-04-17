@@ -8,6 +8,7 @@ import altair as alt
 from streamlit_extras.row import row
 import streamlit as st
 import google.generativeai as genai
+from utils import get_gemini_key
 
 ###############################################################################################
 ################################## Functions ##################################################
@@ -345,7 +346,8 @@ def create_stats_bar(player_id, player_team, stat_to_show):
 ###############################################################################################
 
 gemini_model = genai.GenerativeModel('gemini-pro')
-genai.configure(api_key=st.secrets["gemini_key"]) # set the api key
+gemini_key = get_gemini_key()
+genai.configure(api_key=gemini_key)
 
 warnings.filterwarnings("ignore")
 
