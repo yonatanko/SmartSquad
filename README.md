@@ -10,9 +10,18 @@
 
 <h2>:recycle: Reproduction of Model results</h2>
 <p>If you wish to reproduce the scores_df.csv and the difficulties_df.csv : </p>
-<p>1) Download the Repo locally</p>
-<p>2) Download the requirements </p>
+<p> 1) Download the Repo locally</p>
+<p> 2) Download the requirements </p>
 
 ```
 pip install requirements.txt
 ```
+
+<p> 3) Run the Predectors.py </p>
+
+```
+python Predectors.py
+```
+Both CSV files will appear in your folder afterward.
+
+
