@@ -7,7 +7,7 @@
 
 <h2>:gear: Configurations </h2>
 <p>Our entire app is Web-based and accessible through the link added above.</p>
-<p>If you wish to enter you own Gemini key, follow the following steps:</p>
+<p>If you wish to enter your own Gemini key, follow the following steps:</p>
 <p> 1. Edit the config.json file</p>
 
 ```
@@ -15,7 +15,7 @@
   "gemini_ky": {enter your key here}
 }
 ```
-<p> 2. Edit utils.py get_gemini_key function. comment the first line and uncomment the rest. </p>
+<p> 2. Edit utils.py get_gemini_key function. comment the first line and uncomment the lines below the instructions. </p>
 
 ```
 def get_gemini_key():
