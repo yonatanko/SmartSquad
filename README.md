@@ -31,3 +31,22 @@ python Predectors.py
 Both CSV files will appear in your folder afterward.
 
 <h2>:file_folder: Project Structure</h2>
+
+```
+.
+├── .streamlit                  # Streamlit configuration files
+├── Fantasy-Premier-Leaguue     # Static Data Folder                   
+├── data_collection
+    ├── fpl_api_collection.py   # Dynamic Data collection functions          
+├── pages                       # Web pages folder
+    ├── main_page.py            # Main page code
+    ├── stats_page.py           # Statistics and charts page code
+├── Builders.py                 # Builder functions for the AI prediction algorithms in Predectors.py
+├── Predectors.py               # Scores and difficulties prediction code
+├── SmartSquad.py               # Welcome page code
+├── app_image.png               # app logo
+├── difficulties_df.csv         # fixtures difficulties data predicted by our AI model
+├── scores_df.csv               # Players' scores prediction data predicted by our AI model
+├── requirements.txt            # Requirements of the Project
+└── README.md
+```
