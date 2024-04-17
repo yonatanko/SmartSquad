@@ -345,7 +345,7 @@ def create_stats_bar(player_id, player_team, stat_to_show):
 ###############################################################################################
 
 gemini_model = genai.GenerativeModel('gemini-pro')
-genai.configure(api_key="AIzaSyBkmXlYvHCJHSgsJlCyR9RXtDpHH2GqDpU")
+genai.configure(api_key=st.secrets["gemini_key"])
 
 warnings.filterwarnings("ignore")
 
