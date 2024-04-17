@@ -21,6 +21,8 @@ git clone https://github.com/yonatanko/SmartSquad.git
 pip install -r requirements.txt
 ```
 
+<h2></h2>
+
 <p> 3. Run the Predectors.py </p>
 
 ```
@@ -28,4 +30,4 @@ python Predectors.py
 ```
 Both CSV files will appear in your folder afterward.
 
-
+<h2>:file_folder: Project Structure</h2>
